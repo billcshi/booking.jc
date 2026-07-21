@@ -49,11 +49,13 @@ export default async function Home({
           usage[day].hiddenApproved += request.hidden_seats;
           usage[day].people += request.party_size;
         }else usage[day].pending += request.party_size;
-        if (request.status === "approved") {
+        if (unlocked && request.status === "approved") {
           usage[day].guests.push({
             name: request.guest_name,
             size: request.party_size,
           });
+        }
+        if (request.status === "approved") {
           if (request.exclusive) usage[day].exclusive = true;
         }
       }
