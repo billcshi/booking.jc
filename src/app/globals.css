@@ -1,5 +1,5 @@
 @import "tailwindcss";
-.language-switcher{position:fixed;z-index:100;top:.9rem;right:.9rem;min-width:2.75rem;padding:.45rem .65rem;border:1px solid #c9c5bc;border-radius:999px;background:rgb(255 255 255 / 90%);color:#272522;box-shadow:0 .25rem 1rem rgb(0 0 0 / 8%);backdrop-filter:blur(10px)}
+.language-switcher{position:fixed;z-index:100;right:max(.9rem,env(safe-area-inset-right));bottom:max(.9rem,env(safe-area-inset-bottom));min-width:2.75rem;padding:.45rem .65rem;border:1px solid #c9c5bc;border-radius:999px;background:rgb(255 255 255 / 90%);color:#272522;box-shadow:0 .25rem 1rem rgb(0 0 0 / 8%);backdrop-filter:blur(10px)}
 .success {
   background: #dcebdd;
   color: #225c36;
