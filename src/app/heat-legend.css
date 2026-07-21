@@ -1,0 +1,1 @@
+.heat-legend{display:flex;gap:7px;flex-wrap:wrap}.heat-legend span{padding:4px 8px;border-radius:999px;font-size:10px}.heat-legend .empty{background:#e4f3e6}.heat-legend .low{background:#fff0b8}.heat-legend .high{background:#ffdfc3}.heat-legend .full{background:#f3cbc5}.heat-legend .exclusive{background:#e6d7f2}.heat-legend .blocked{background:#e3ded8}

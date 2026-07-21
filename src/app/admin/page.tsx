@@ -1,0 +1,245 @@
+import { redirect } from "next/navigation";
+import Link from "next/link";
+import { isAdmin } from "@/lib/auth";
+import {
+  getSetting,
+  listBlackouts,
+  listInviteKeys,
+  listRequestAllocations,
+  listRequests,
+  listStays,
+  listStayResources,
+} from "@/lib/db";
+import { addGuestDirectly, logout } from "@/app/actions";
+import BlackoutManager from "./blackout-manager";
+import GroupKeyManager from "./group-key-manager";
+import RequestList from "./request-list";
+import TripManager from "./trip-manager";
+import HomeManager from "./home-manager";
+import AdminPanel from "./admin-panel";
+export const dynamic = "force-dynamic";
+function todayInAppTimeZone() {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: process.env.APP_TIME_ZONE ?? "UTC",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
+export default async function Admin({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    error?: string;
+    added?: string;
+    blocked?: string;
+    key_reset?: string;
+    invite_created?: string;
+    invite_reset?: string;
+    edited?: string;
+    stay_edited?: string;
+    stay_deleted?: string;
+    request_deleted?: string;
+    home_updated?: string;
+  }>;
+}) {
+  if (!(await isAdmin())) redirect("/admin/login");
+  const requests = listRequests(),
+    stays = listStays(),
+    resources = listStayResources(),
+    allocations = listRequestAllocations(),
+    blackouts = listBlackouts(),
+    inviteKeys = listInviteKeys(),
+    groupKey = getSetting("group_key") ?? "",
+    hostDisplayName = getSetting("host_display_name") ?? "Host",
+    {
+      error,
+      added,
+      blocked,
+      key_reset,
+      invite_created,
+      invite_reset,
+      stay_edited,
+      stay_deleted,
+      request_deleted,
+      home_updated,
+    } = await searchParams;
+  const errorMessage =
+    error === "key_format"
+      ? "Key code 必须是 4–64 位，只能使用字母、数字、点、下划线和连字符。"
+      : error === "key_conflict"
+        ? "这个 Key code 已经在使用，请换一个。"
+      : error === "name"
+      ? "请填写姓名或昵称。"
+      : error === "allocation"
+        ? "手动床位分配必须使用该住宿的可用睡位，且分配人数之和必须等于住宿人数。"
+      : error === "request_bounds"
+        ? "这条记录的入住日期超出了当前旅行住宿范围，请先调整记录日期。"
+      : error === "dates"
+        ? "退房日期必须晚于入住日期。"
+        : error === "range"
+          ? "一次历史补录最多支持 10 年。"
+          : error === "people"
+            ? "人数必须是 1–8 人。"
+            : error === "trip_form"
+              ? "请检查旅行名称、地点和日期。"
+              : error === "trip_dates"
+                ? "旅行日期不能排除已有申请或不可住记录。"
+                : error === "trip_resources"
+                  ? "请按“睡位名称 | 人数”填写，每个睡位支持 1–8 人。"
+                  : error === "trip_capacity"
+                  ? "正在使用的睡位不能删除，容量也不能低于现有分配。"
+                    : error === "home_form"
+                      ? "请检查 Host 显示名、固定住所名称和地点。"
+                      : error === "home_resources"
+                        ? "请至少保留一个公开睡位，并检查名称、容量和选项。"
+                        : error === "home_capacity"
+                          ? "已有分配的睡位不能删除，容量也不能低于其历史峰值。"
+                    : error === "trip_active"
+                      ? "该旅行仍有待确认或已确认住客；请先取消或拒绝这些记录，再删除旅行。"
+                      : error === "form"
+                        ? "请检查填写内容。"
+                        : error === "blocked"
+                          ? "所选日期包含不可住时段。"
+                          : "空间不足，或与已有独占住宿冲突；请先调整其他预约。";
+  const today = todayInAppTimeZone();
+  const home = stays.find((stay) => !stay.starts_on && !stay.ends_on);
+  const homeResources = home
+    ? resources.filter((resource) => resource.stay_id === home.id)
+    : [];
+  const homeEditorVersion = home
+    ? JSON.stringify([
+        home.id,
+        home.name,
+        home.location,
+        hostDisplayName,
+        homeResources.map((resource) => [
+          resource.id,
+          resource.name,
+          resource.capacity,
+          resource.priority,
+          resource.admin_only,
+          resource.requires_sofa_consent,
+        ]),
+      ])
+    : "";
+  return (
+    <main className="admin">
+      <header className="admin-nav">
+        <Link href="/" className="brand">
+          booking.jc
+        </Link>
+        <form action={logout}>
+          <button className="link-button">退出</button>
+        </form>
+      </header>
+      <div className="admin-wrap">
+        <div className="admin-title">
+          <div>
+            <p className="eyebrow">HOST DESK</p>
+            <h1>住宿管理</h1>
+          </div>
+        </div>
+        {error && <p className="alert">{errorMessage}</p>}
+        {added && <p className="success">住客已直接加入并自动安排位置。</p>}
+        {stay_edited && <p className="success">旅行住宿已更新。</p>}
+        {stay_deleted && <p className="success">临时旅行住宿已删除。</p>}
+        {request_deleted && <p className="success">住宿记录已删除，对应床位已经释放。</p>}
+        {home_updated && <p className="success">固定住所和睡位设置已更新。</p>}
+        {blocked && <p className="success">关闭时段已保存。</p>}
+        <div className="admin-panels">
+          <RequestList
+            requests={requests}
+            resources={resources}
+            allocations={allocations}
+            today={today}
+          />
+
+          <AdminPanel
+            eyebrow="QUICK ADD"
+            title="直接安排住客"
+            description="录入未来安排或补录历史住宿，无需经过公开申请流程。"
+          >
+            <form action={addGuestDirectly}>
+              <div className="row">
+                <label>
+                  住宿
+                  <select name="stay_id" required>
+                    {stays.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  姓名 / 群昵称
+                  <input name="guest_name" required maxLength={80} />
+                </label>
+              </div>
+              <div className="row">
+                <label>
+                  入住
+                  <input name="starts_on" type="date" required />
+                </label>
+                <label>
+                  退房
+                  <input name="ends_on" type="date" required />
+                </label>
+              </div>
+              <div className="row">
+                <label>
+                  人数
+                  <input
+                    name="party_size"
+                    type="number"
+                    min="1"
+                    max="8"
+                    defaultValue="1"
+                    required
+                  />
+                </label>
+                <div>
+                  <label className="check admin-check">
+                    <input name="accepts_sofa" type="checkbox" /> 可以安排需 sofa
+                    同意的睡位（仅固定住所）
+                  </label>
+                  <label className="check admin-check">
+                    <input name="accepts_air_mattress" type="checkbox" /> 可以安排隐藏
+                    备用位（仅固定住所）
+                  </label>
+                  <label className="check">
+                    <input name="exclusive" type="checkbox" /> 独占住宿，不接待其他人
+                  </label>
+                </div>
+              </div>
+              <label>
+                内部备注（可选）
+                <input name="note" maxLength={500} />
+              </label>
+              <button className="primary">直接加入并安排</button>
+            </form>
+          </AdminPanel>
+
+          {home && (
+            <HomeManager
+              key={homeEditorVersion}
+              home={home}
+              resources={homeResources}
+              hostDisplayName={hostDisplayName}
+            />
+          )}
+          <BlackoutManager stays={stays} blackouts={blackouts} />
+          <TripManager stays={stays} resources={resources} today={today} />
+          <GroupKeyManager
+            groupKey={groupKey}
+            inviteKeys={inviteKeys}
+            reset={Boolean(key_reset)}
+            inviteCreated={Boolean(invite_created)}
+            inviteReset={Boolean(invite_reset)}
+          />
+        </div>
+      </div>
+    </main>
+  );
+}

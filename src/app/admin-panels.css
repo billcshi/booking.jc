@@ -1,0 +1,164 @@
+.admin-panels {
+  display: grid;
+  gap: 16px;
+  margin-top: 28px;
+}
+
+.admin-panel {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: 0 10px 30px #24312c0a;
+  overflow: clip;
+}
+
+.admin-panel > summary {
+  align-items: center;
+  cursor: pointer;
+  display: flex;
+  gap: 24px;
+  justify-content: space-between;
+  list-style: none;
+  padding: 22px 24px;
+  transition: background 150ms ease;
+}
+
+.admin-panel > summary::-webkit-details-marker {
+  display: none;
+}
+
+.admin-panel > summary:hover {
+  background: #faf9f5;
+}
+
+.admin-panel-heading {
+  display: block;
+  min-width: 0;
+}
+
+.admin-panel-heading .eyebrow {
+  display: block;
+  font-size: 10px;
+  margin: 0 0 5px;
+}
+
+.admin-panel-title {
+  display: block;
+  font: 600 27px/1.1 var(--font-serif);
+  margin: 0;
+}
+
+.admin-panel-description {
+  color: #68736d;
+  display: block;
+  font-size: 12px;
+  line-height: 1.45;
+  margin: 7px 0 0;
+}
+
+.admin-panel-meta {
+  align-items: center;
+  display: flex;
+  flex: 0 0 auto;
+  gap: 12px;
+}
+
+.admin-panel-meta > span {
+  background: #edf0eb;
+  border-radius: 999px;
+  color: #59655e;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 6px 10px;
+  white-space: nowrap;
+}
+
+.admin-panel-meta i {
+  border-bottom: 2px solid #657069;
+  border-right: 2px solid #657069;
+  display: block;
+  height: 9px;
+  transform: rotate(45deg) translateY(-2px);
+  transition: transform 150ms ease;
+  width: 9px;
+}
+
+.admin-panel[open] > summary .admin-panel-meta i {
+  transform: rotate(225deg) translate(-2px, -2px);
+}
+
+.admin-panel[open] > summary {
+  background: #faf9f5;
+}
+
+.admin-panel-body {
+  border-top: 1px solid #e8e4dc;
+  padding: 24px;
+}
+
+.admin-panel-body > :first-child {
+  margin-top: 0;
+}
+
+.admin-panel-body > :last-child {
+  margin-bottom: 0;
+}
+
+.admin-panel .request-list {
+  margin: 0;
+}
+
+.admin-panel .archive-panel {
+  margin-bottom: 0;
+}
+
+.admin-panel .create-panel,
+.admin-subpanel {
+  background: #f8f7f2;
+  border: 1px solid #dfdbd2;
+  border-radius: 14px;
+  margin-top: 14px;
+  padding: 18px;
+}
+
+.admin-subpanel > summary,
+.admin-panel .create-panel > summary {
+  cursor: pointer;
+  font: 600 19px var(--font-serif);
+}
+
+.admin-panel .empty {
+  background: #f8f7f2;
+  border: 1px dashed #d8d4c9;
+  margin: 0;
+}
+
+.admin-panel form > .primary:last-child {
+  margin-top: 4px;
+}
+
+@media (max-width: 700px) {
+  .admin-panels {
+    gap: 12px;
+    margin-top: 20px;
+  }
+
+  .admin-panel > summary,
+  .admin-panel-body {
+    padding: 18px;
+  }
+
+  .admin-panel-title {
+    font-size: 23px;
+  }
+
+  .admin-panel-description {
+    display: none;
+  }
+
+  .admin-panel-meta > span {
+    max-width: 116px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}

@@ -1,0 +1,45 @@
+.edit-request{margin-top:14px;border-top:1px solid var(--line);padding-top:12px}.edit-request summary{cursor:pointer;font-size:12px;font-weight:700;color:#52665b}.edit-request form{margin-top:16px;background:#f7f6f1;border-radius:10px;padding:16px}.edit-checks{display:flex;gap:24px;flex-wrap:wrap}.edit-checks .check{margin-bottom:12px}.edit-request .primary{margin-top:5px}.admin-section-title{margin-top:34px}.danger-zone{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-top:18px;padding-top:16px;border-top:1px solid #e3c8c3}.danger-zone span,.danger-zone b,.danger-zone small{display:block}.danger-zone small{margin-top:3px;color:#806861}.danger-button{border:1px solid #b85f52!important;background:#fff5f3!important;color:#963f34!important;white-space:nowrap}@media(max-width:640px){.danger-zone{align-items:flex-start;flex-direction:column}}
+
+.allocation-editor {
+  border: 1px solid #dcd8cf;
+  border-radius: 12px;
+  margin: 4px 0 18px;
+  padding: 16px;
+}
+
+.allocation-editor legend {
+  font: 600 18px var(--font-serif);
+  padding: 0 6px;
+}
+
+.allocation-resource-list {
+  border-top: 1px solid #e3dfd7;
+  margin-top: 14px;
+}
+
+.allocation-resource {
+  align-items: center;
+  border-bottom: 1px solid #e3dfd7;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: 1fr 90px;
+  margin: 0;
+  padding: 11px 0;
+}
+
+.allocation-resource span,
+.allocation-resource b,
+.allocation-resource small {
+  display: block;
+}
+
+.allocation-resource small {
+  color: #6c756f;
+  font-weight: 400;
+  margin-top: 3px;
+}
+
+.allocation-resource > input[type="number"] {
+  margin: 0;
+  text-align: center;
+}

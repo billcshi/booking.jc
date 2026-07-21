@@ -1,0 +1,18 @@
+@media (max-width: 720px) {
+  .calendar-hero { padding-bottom: 36px; }
+  .hero-copy { display: block; }
+  .hero-copy > p { margin-top: 18px; }
+  .calendar-section { width: 100%; padding-top: 22px; }
+  .booking-shell { gap: 14px; }
+  .stay-tabs, .legend, .quick-form { margin-left: 16px; margin-right: 16px; }
+  .calendar-grid { border-radius: 0; border-left: 0; border-right: 0; }
+  .calendar-grid button { min-height: 78px; padding: 7px; }
+  .calendar-grid strong { font-size: 20px; }
+  .calendar-grid .weekday { font-size: 9px; }
+  .calendar-grid em { font-size: 8px; }
+  .quick-fields { grid-template-columns: 1fr 90px; }
+  .quick-fields label:nth-child(3), .quick-fields label:nth-child(4) { grid-column: 1 / -1; }
+  .selection { font-size: 13px; }
+  .legend { gap: 10px; }
+  .stay-tabs button { min-width: 180px; }
+}

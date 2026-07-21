@@ -1,0 +1,71 @@
+.natural-calendar > button.in-range {
+  background: #cfe4d5 !important;
+  box-shadow: inset 0 3px 0 #6f9d7b, inset 0 -3px 0 #6f9d7b;
+  transition: background-color 180ms ease, color 180ms ease, box-shadow 180ms ease,
+    transform 120ms ease;
+}
+
+.natural-calendar > button.range-start,
+.natural-calendar > button.range-end {
+  z-index: 4;
+  background: var(--dark) !important;
+  color: #fff !important;
+  box-shadow: inset 0 0 0 3px #142f27, 0 5px 14px #18372c3d !important;
+  animation: range-selected 220ms ease-out;
+}
+
+.natural-calendar > button.range-start {
+  border-radius: 10px 0 0 10px;
+}
+
+.natural-calendar > button.range-end {
+  border-radius: 0 10px 10px 0;
+}
+
+.natural-calendar > button.range-start.range-end {
+  border-radius: 10px;
+}
+
+.natural-calendar > button.range-start .occupancy-meter,
+.natural-calendar > button.range-end .occupancy-meter {
+  opacity: 0.45;
+}
+
+.range-label {
+  box-shadow: 0 2px 6px #10251e33;
+}
+
+@keyframes range-selected {
+  from {
+    transform: scale(0.94);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .natural-calendar > button.range-start,
+  .natural-calendar > button.range-end {
+    animation: none;
+  }
+}
+
+.quick-fields .exclusive-request {
+  align-items: flex-start;
+  padding: 11px 13px;
+  border: 1px solid #d8c9e4;
+  border-radius: 10px;
+  background: #f5eff9;
+}
+
+.quick-fields .exclusive-request span,
+.quick-fields .exclusive-request small {
+  display: block;
+}
+
+.quick-fields .exclusive-request small {
+  margin-top: 3px;
+  color: #705c7d;
+  line-height: 1.4;
+}

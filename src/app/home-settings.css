@@ -1,0 +1,30 @@
+.resource-editor {
+  display: grid;
+  gap: 0.8rem;
+  margin: 1rem 0;
+}
+
+.resource-row {
+  align-items: end;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: minmax(12rem, 2fr) minmax(5rem, 0.6fr) minmax(9rem, 1fr) minmax(11rem, 1.2fr) auto;
+  padding: 0.9rem;
+}
+
+.resource-actions {
+  display: flex;
+  gap: 0.35rem;
+}
+
+@media (max-width: 900px) {
+  .resource-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .resource-actions {
+    grid-column: 1 / -1;
+  }
+}
