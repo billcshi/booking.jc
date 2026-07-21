@@ -3,6 +3,7 @@ import { getSetting, listBlackouts, listStays, publicSchedule } from "@/lib/db";
 import BookingCalendar from "./booking-calendar";
 import { getGroupAccess } from "@/lib/auth";
 import { switchKey } from "./actions";
+import { getI18n } from "@/lib/i18n-server";
 
 export const dynamic = "force-dynamic";
 function nights(start: string, end: string) {
@@ -21,6 +22,7 @@ export default async function Home({
 }: {
   searchParams: Promise<{ error?: string }>;
 }) {
+  const { t } = await getI18n();
   const stays = listStays(),
     requests = publicSchedule(),
     blackouts = listBlackouts(),
@@ -74,16 +76,16 @@ export default async function Home({
         <div className="wrap">
           <nav>
             <span className="brand">booking.jc</span>
-            {access?.inviteKeyId && <Link href="/my-requests">我的申请</Link>}
-            {access&&<form action={switchKey}><button type="submit" className="nav-link">更换 Key</button></form>}
+            {access?.inviteKeyId && <Link href="/my-requests">{t("我的申请")}</Link>}
+            {access&&<form action={switchKey}><button type="submit" className="nav-link">{t("更换 Key")}</button></form>}
             <Link href="/admin">Host</Link>
           </nav>
           <div className="hero-copy">
             <div>
               <p className="eyebrow">A PLACE FOR FRIENDS</p>
-              <h1>选你要住的晚上</h1>
+              <h1>{t("选你要住的晚上")}</h1>
             </div>
-            <p>点日期看谁会来，再选择入住和退房。</p>
+            <p>{t("点日期看谁会来，再选择入住和退房。")}</p>
           </div>
         </div>
       </header>
@@ -91,10 +93,10 @@ export default async function Home({
         {error && !unlocked && (
           <p className="alert">
             {error === "key"
-              ? "Key code 不正确或已停用。"
+              ? t("Key code 不正确或已停用。")
               : error === "rate"
-                ? "尝试次数太多，请稍后再试。"
-                : "请先输入 key code 解锁。"}
+                ? t("尝试次数太多，请稍后再试。")
+                : t("请先输入 key code 解锁。")}
           </p>
         )}
         <BookingCalendar

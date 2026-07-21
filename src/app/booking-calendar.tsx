@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { submitRequest, unlockGroup } from "./actions";
+import { useI18n } from "./locale-provider";
 
 type Night = {
   approved: number;
@@ -24,7 +25,6 @@ type StayView = {
   nights: Record<string, Night>;
 };
 const DAY = 86_400_000;
-const weekdays = ["日", "一", "二", "三", "四", "五", "六"];
 function iso(date: Date) {
   return date.toISOString().slice(0, 10);
 }
@@ -53,8 +53,8 @@ function monthGrid(month: string) {
     start = add(first, -offset);
   return Array.from({ length: 42 }, (_, i) => add(start, i));
 }
-function pretty(date: string) {
-  return new Intl.DateTimeFormat("zh-CN", {
+function pretty(date: string, locale: string) {
+  return new Intl.DateTimeFormat(locale, {
     month: "long",
     day: "numeric",
     weekday: "short",
@@ -77,6 +77,8 @@ export default function BookingCalendar({
   hostDisplayName: string;
   timeZone: string;
 }) {
+  const { locale, t } = useI18n();
+  const weekdays = locale === "en" ? ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] : ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
   const [stayId, setStayId] = useState(stays[0]?.id ?? 0),
     stay = stays.find((x) => x.id === stayId) ?? stays[0];
   const today = localToday(timeZone);
@@ -167,20 +169,14 @@ export default function BookingCalendar({
         ))}
       </div>
       <p className="stay-summary">
-        <b>{stay.total_capacity} 个睡位</b> ·{" "}
+        <b>{stay.total_capacity} {t("个睡位")}</b> ·{" "}
         {isTrip
-          ? `${pretty(stay.starts_on!)} → ${pretty(stay.ends_on!)} · 仅行程日期可预约`
-          : "固定住所 · 睡位由管理员维护"}{" "}
-        · 退房日不占床位
+          ? `${pretty(stay.starts_on!, locale)} → ${pretty(stay.ends_on!, locale)} · ${t("仅行程日期可预约")}`
+          : t("固定住所 · 睡位由管理员维护")}{" "}
+        · {t("退房日不占床位")}
       </p>
       <div className="heat-legend">
-        <span className="empty">空</span>
-        <span className="low">少量占用</span>
-        <span className="high">接近满</span>
-        <span className="full">已满</span>
-        <span className="exclusive">独占</span>
-        <span className="blocked">不可住</span>
-        {isTrip && <span className="outside">非行程</span>}
+        <span className="empty">{t("空")}</span><span className="low">{t("少量占用")}</span><span className="high">{t("接近满")}</span><span className="full">{t("已满")}</span><span className="exclusive">{t("独占")}</span><span className="blocked">{t("不可住")}</span>{isTrip && <span className="outside">{t("非行程")}</span>}
       </div>
       <div className="month-layout">
         <div className="month-main">
@@ -197,11 +193,11 @@ export default function BookingCalendar({
                       )
                     : !showHistory && shiftMonth(month, -1) < monthOf(today)
                 }
-                aria-label="上个月"
+                aria-label={t("上个月")}
               >
                 ‹
               </button>
-              <h2>{month.replace("-", " 年 ")} 月</h2>
+              <h2>{new Intl.DateTimeFormat(locale,{year:"numeric",month:"long",timeZone:"UTC"}).format(new Date(`${month}-01T00:00:00Z`))}</h2>
               <button
                 type="button"
                 onClick={() => setMonth(shiftMonth(month, 1))}
@@ -212,7 +208,7 @@ export default function BookingCalendar({
                       )
                     : false
                 }
-                aria-label="下个月"
+                aria-label={t("下个月")}
               >
                 ›
               </button>
@@ -229,7 +225,7 @@ export default function BookingCalendar({
                     }
                   }}
                 >
-                  {showHistory ? "返回未来" : "查看历史"}
+                  {showHistory ? t("返回未来") : t("查看历史")}
                 </button>
               )}
               <button
@@ -240,23 +236,23 @@ export default function BookingCalendar({
                   setFocus(d);
                 }}
               >
-                {isTrip ? "行程日期" : "今天"}
+                {isTrip ? t("行程日期") : t("今天")}
               </button>
             </div>
           </div>
           <div className="range-hint">
             {!start
-              ? "点击入住日，再点击退房日"
+              ? t("点击入住日，再点击退房日")
               : end
-                ? "日期范围已选好；点击其他日期可重新选择"
-                : `入住：${pretty(start)} · 现在点击退房日`}
+                ? t("日期范围已选好；点击其他日期可重新选择")
+                : `${t("入住")}：${pretty(start, locale)} · ${t("现在点击退房日")}`}
           </div>
           {start && (
             <div className="range-bar">
               <span>
                 {end
-                  ? `${pretty(start)} 入住 → ${pretty(end)} 退房 · ${Math.round((Date.parse(end) - Date.parse(start)) / DAY)} 晚`
-                  : `已选 ${pretty(start)} 入住，请再点退房日`}
+                  ? `${t("入住")} ${pretty(start, locale)} → ${t("退房")} ${pretty(end, locale)} · ${Math.round((Date.parse(end) - Date.parse(start)) / DAY)} ${t("晚")}`
+                  : `${t("已选")} ${pretty(start, locale)} ${t("入住")}，${t("请再点退房日")}`}
               </span>
               <button
                 type="button"
@@ -265,13 +261,13 @@ export default function BookingCalendar({
                   setEnd("");
                 }}
               >
-                清除
+                {t("清除")}
               </button>
             </div>
           )}
           <div className="weekday-row">
             {weekdays.map((x) => (
-              <span key={x}>周{x}</span>
+              <span key={x}>{x}</span>
             ))}
           </div>
           <div className="natural-calendar">
@@ -320,26 +316,26 @@ export default function BookingCalendar({
                   disabled={outsideTrip || (!showHistory && past)}
                   onClick={() => pickDate(day)}
                   className={`${other ? "other-month " : ""}${past && !showHistory ? "past-hidden " : ""}${selected ? "focused " : ""}${inRange ? "in-range " : ""}${day === start ? "range-start " : ""}${day === end ? "range-end " : ""}${tier}`}
-                  aria-label={`${pretty(day)}，${outsideTrip ? "非此次行程" : departure ? "退房日" : use.blocked ? "不可住" : use.exclusive ? "独占住宿" : left ? `余${left}位` : overflowOnly ? "常规床位已满，隐藏备用位可用" : "已满"}${outsideTrip || departure ? "" : `，${use.pending}人待确认`}`}
+                  aria-label={`${pretty(day, locale)}，${outsideTrip ? t("非此次行程") : departure ? t("退房日") : use.blocked ? t("不可住") : use.exclusive ? t("独占住宿") : left ? `${t("余")} ${left} ${t("位")}` : overflowOnly ? t("常规床位已满，隐藏备用位可用") : t("已满")}${outsideTrip || departure ? "" : `，${use.pending} ${t("人待确认")}`}`}
                 >
                   <strong>{Number(day.slice(-2))}</strong>
                   <small>
                     {outsideTrip
-                      ? "— 非行程"
+                      ? `— ${t("非行程")}`
                       : departure
-                        ? "↗ 退房日"
+                        ? `↗ ${t("退房日")}`
                         : use.blocked
-                          ? "× 不可住"
+                          ? `× ${t("不可住")}`
                           : use.exclusive
-                            ? "🔒 独占"
+                            ? `🔒 ${t("独占")}`
                             : left
-                              ? `✓ 余 ${left}`
+                              ? `✓ ${t("余")} ${left}`
                               : overflowOnly
-                                ? "＋ 备用位"
-                                : "— 已满"}
+                                ? `＋ ${t("备用位")}`
+                                : `— ${t("已满")}`}
                   </small>
-                  {day === start && <b className="range-label">入住</b>}
-                  {day === end && <b className="range-label">退房</b>}
+                  {day === start && <b className="range-label">{t("入住")}</b>}
+                  {day === end && <b className="range-label">{t("退房")}</b>}
                   {!outsideTrip &&
                     !departure &&
                     !use.blocked &&
@@ -366,7 +362,7 @@ export default function BookingCalendar({
                       </span>
                     ) : use.people > 0 ? (
                       <span className="friend-count">
-                        {use.people} 位朋友
+                        {use.people} {t("位朋友")}
                       </span>
                     ) : null)}
                   {!outsideTrip && !departure && use.pending > 0 && (
@@ -378,22 +374,19 @@ export default function BookingCalendar({
           </div>
         </div>
         <aside className="day-panel">
-          <p className="panel-kicker">今晚住宿</p>
-          <h3>{pretty(focus)}</h3>
+          <p className="panel-kicker">{t("今晚住宿")}</p><h3>{pretty(focus, locale)}</h3>
           {isTripDeparture(focus) ? (
             <div className="trip-boundary-panel">
-              <strong>此次旅行退房日</strong>
-              <span>这一天不占床位，可作为所选住宿的退房日期。</span>
+              <strong>{t("此次旅行退房日")}</strong><span>{t("这一天不占床位，可作为所选住宿的退房日期。")}</span>
             </div>
           ) : !inTripNight(focus) ? (
             <div className="trip-boundary-panel">
-              <strong>不在此次行程内</strong>
-              <span>只有旅行开始日至退房日前一晚可以住宿。</span>
+              <strong>{t("不在此次行程内")}</strong><span>{t("只有旅行开始日至退房日前一晚可以住宿。")}</span>
             </div>
           ) : night.blocked ? (
             <div className="blocked-panel">
-              <strong>这晚不可住</strong>
-              <span>{night.blocked}</span>
+              <strong>{t("这晚不可住")}</strong>
+              <span>{locale==="en"&&night.blocked.startsWith("外出：")?`Away: ${night.blocked.slice(3)}`:night.blocked}</span>
             </div>
           ) : (
             <>
@@ -405,8 +398,7 @@ export default function BookingCalendar({
                 </strong>
                 <span>
                   {night.exclusive
-                    ? "独占住宿 · 不接待其他住客"
-                    : `已确认 · 余 ${remaining}`}
+                    ? t("独占住宿 · 不接待其他住客") : `${t("已确认 · 余")} ${remaining}`}
                 </span>
               </div>
               {unlocked ? (
@@ -418,21 +410,21 @@ export default function BookingCalendar({
                         <span>
                           <b>{g.name}</b>
                           <small>
-                            {g.size} 人{night.exclusive ? " · 独占" : ""}
+                            {g.size} {t("人")}{night.exclusive ? ` · ${t("独占")}` : ""}
                           </small>
                         </span>
                       </div>
                     ))
                   ) : (
-                    <p>这晚还没人住。</p>
+                    <p>{t("这晚还没人住。")}</p>
                   )}
                 </div>
               ) : (
                 <form action={unlockGroup} className="unlock">
                   <p>
                     {night.people
-                      ? `${night.people} 位朋友会来。输入 key code 查看昵称并申请。`
-                      : "输入全群或个人 key code 查看昵称并申请。"}
+                      ? locale === "en" ? `${night.people} friends are coming. Enter a key code to view names and request a stay.` : `${night.people} 位朋友会来。输入 key code 查看昵称并申请。`
+                      : t("输入全群或个人 key code 查看昵称并申请。")}
                   </p>
                   <div>
                     <input
@@ -441,12 +433,12 @@ export default function BookingCalendar({
                       placeholder="Key code"
                       required
                     />
-                    <button>解锁</button>
+                    <button>{t("解锁")}</button>
                   </div>
                 </form>
               )}
               {night.pending > 0 && (
-                <p className="pending-note">◷ 另有 {night.pending} 人待确认</p>
+                <p className="pending-note">◷ {t("另有")} {night.pending} {t("人待确认")}</p>
               )}
             </>
           )}
@@ -460,29 +452,27 @@ export default function BookingCalendar({
           <div className="selection">
             <span>
               {start && end
-                ? `${pretty(start)}入住 → ${pretty(end)}退房`
-                : "在日历上依次点击入住日和退房日"}
+                ? `${t("入住")} ${pretty(start, locale)} → ${t("退房")} ${pretty(end, locale)}` : t("在日历上依次点击入住日和退房日")}
             </span>
             {start && end && (
               <b>
-                {Math.round((Date.parse(end) - Date.parse(start)) / DAY)} 晚
+                {Math.round((Date.parse(end) - Date.parse(start)) / DAY)} {t("晚")}
               </b>
             )}
           </div>
           {error && (
             <p className="alert">
               {error === "rate"
-                ? "尝试次数太多，请稍后再试。"
-                : "请检查日期和填写内容。"}
+                ? t("尝试次数太多，请稍后再试。") : t("请检查日期和填写内容。")}
             </p>
           )}
           <div className="quick-fields">
             <label>
-              群里昵称 <small>会向群友显示</small>
+              {t("群里昵称")} <small>{t("会向群友显示")}</small>
               <input name="guest_name" required maxLength={80} defaultValue={guestName} />
             </label>
             <label>
-              人数
+              {t("人数")}
               <input
                 name="party_size"
                 type="number"
@@ -493,22 +483,22 @@ export default function BookingCalendar({
               />
             </label>
             {!isTrip&&stay.sofa_capacity>0&&<label className="check">
-              <input name="accepts_sofa" type="checkbox" /> 可以睡 sofa
+              <input name="accepts_sofa" type="checkbox" /> {t("可以睡 sofa")}
             </label>}
             {!isTrip&&stay.hidden_capacity>0&&
             <label className="check">
-              <input name="accepts_air_mattress" type="checkbox" checked={acceptsAirMattress} onChange={event=>setAcceptsAirMattress(event.target.checked)} /> 接受隐藏备用位
+              <input name="accepts_air_mattress" type="checkbox" checked={acceptsAirMattress} onChange={event=>setAcceptsAirMattress(event.target.checked)} /> {t("接受隐藏备用位")}
             </label>}
             <label className="check exclusive-request">
               <input name="exclusive" type="checkbox" />
               <span>
-                希望独占住宿
-                <small>整段时间不与其他住客同住，最终由 {hostDisplayName} 确认</small>
+                {t("希望独占住宿")}
+                <small>{locale==="en"?`Do not share with other guests during this stay; final approval is up to ${hostDisplayName}`:`整段时间不与其他住客同住，最终由 ${hostDisplayName} 确认`}</small>
               </span>
             </label>
           </div>
           <button className="primary" disabled={!start || !end}>
-            提交给 {hostDisplayName} 确认
+            {locale==="en"?`Submit for ${hostDisplayName} approval`:`提交给 ${hostDisplayName} 确认`}
           </button>
         </form>
       )}

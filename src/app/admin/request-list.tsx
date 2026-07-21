@@ -8,13 +8,7 @@ import type {
 } from "@/lib/db";
 import { deleteRequest, editRequest, updateRequest } from "@/app/actions";
 import AdminPanel from "./admin-panel";
-
-const labels: Record<string, string> = {
-  pending: "待确认",
-  approved: "已确认",
-  rejected: "已拒绝",
-  cancelled: "已取消",
-};
+import { useI18n } from "../locale-provider";
 
 function requestCardVersion(
   request: BookingRequest,
@@ -44,6 +38,8 @@ function RequestCard({
   resources: StayResource[];
   allocations: RequestAllocation[];
 }) {
+  const { locale, t } = useI18n();
+  const labels: Record<string,string>={pending:t("待确认"),approved:t("已确认"),rejected:t("已拒绝"),cancelled:t("已取消")};
   const [allocationMode, setAllocationMode] = useState(
     r.status === "approved" ? "manual" : "auto",
   );
@@ -55,7 +51,7 @@ function RequestCard({
             {labels[r.status] ?? r.status}
           </span>
           <h3>
-            {r.guest_name} · {r.party_size} 人 {r.exclusive ? "· 🔒 独占" : ""}
+            {r.guest_name} · {r.party_size} {t("人")} {r.exclusive ? `· 🔒 ${t("独占")}` : ""}
           </h3>
           <p>
             {r.stay_name} · {r.starts_on} → {r.ends_on}
@@ -66,30 +62,28 @@ function RequestCard({
             <form action={updateRequest}>
               <input type="hidden" name="id" value={r.id} />
               <input type="hidden" name="status" value="approved" />
-              <button className="approve">确认并安排</button>
+              <button className="approve">{t("确认并安排")}</button>
             </form>
             <form action={updateRequest}>
               <input type="hidden" name="id" value={r.id} />
               <input type="hidden" name="status" value="rejected" />
-              <button>拒绝</button>
+              <button>{t("拒绝")}</button>
             </form>
           </div>
         )}
       </div>
       <div className="request-detail">
         {r.is_home? <>
-        <span>Sofa：{r.accepts_sofa ? "可以" : "不可以"}</span>
-        <span>隐藏备用位：{r.accepts_air_mattress ? "接受" : "不接受"}</span>
+        <span>Sofa：{r.accepts_sofa ? t("可以") : t("不可以")}</span><span>{t("隐藏备用位")}：{r.accepts_air_mattress ? t("接受") : t("不接受")}</span>
         </>:null}
-        {r.allocation && <strong>安排：{r.allocation}</strong>}
-        {r.note && <span>备注：{r.note}</span>}
+        {r.allocation && <strong>{t("安排")}：{r.allocation}</strong>}{r.note && <span>{t("备注")}：{r.note}</span>}
       </div>
       <details className="edit-request">
-        <summary>编辑这条记录</summary>
+        <summary>{t("编辑这条记录")}</summary>
         <form action={editRequest}>
           <input type="hidden" name="id" value={r.id} />
           <label>
-            姓名 / 昵称
+            {t("姓名 / 昵称")}
             <input
               name="guest_name"
               defaultValue={r.guest_name}
@@ -99,7 +93,7 @@ function RequestCard({
           </label>
           <div className="row">
             <label>
-              入住
+              {t("入住")}
               <input
                 name="starts_on"
                 type="date"
@@ -108,7 +102,7 @@ function RequestCard({
               />
             </label>
             <label>
-              退房
+              {t("退房")}
               <input
                 name="ends_on"
                 type="date"
@@ -119,7 +113,7 @@ function RequestCard({
           </div>
           <div className="row">
             <label>
-              人数
+              {t("人数")}
               <input
                 name="party_size"
                 type="number"
@@ -130,12 +124,9 @@ function RequestCard({
               />
             </label>
             <label>
-              状态
+              {t("状态")}
               <select name="status" defaultValue={r.status}>
-                <option value="pending">待确认</option>
-                <option value="approved">已确认</option>
-                <option value="rejected">已拒绝</option>
-                <option value="cancelled">已取消</option>
+                <option value="pending">{t("待确认")}</option><option value="approved">{t("已确认")}</option><option value="rejected">{t("已拒绝")}</option><option value="cancelled">{t("已取消")}</option>
               </select>
             </label>
           </div>
@@ -147,7 +138,7 @@ function RequestCard({
                 type="checkbox"
                 defaultChecked={Boolean(r.accepts_sofa)}
               />{" "}
-              可以睡 sofa
+              {t("可以睡 sofa")}
             </label>
             <label className="check">
               <input
@@ -155,7 +146,7 @@ function RequestCard({
                 type="checkbox"
                 defaultChecked={Boolean(r.accepts_air_mattress)}
               />{" "}
-              接受隐藏备用位
+              {t("接受隐藏备用位")}
             </label>
             </>:null}
             <label className="check">
@@ -164,24 +155,23 @@ function RequestCard({
                 type="checkbox"
                 defaultChecked={Boolean(r.exclusive)}
               />{" "}
-              独占住宿
+              {t("独占住宿")}
             </label>
           </div>
           <fieldset className="allocation-editor">
-            <legend>床位分配</legend>
+            <legend>{t("床位分配")}</legend>
             <label>
-              分配方式
+              {t("分配方式")}
               <select
                 name="allocation_mode"
                 value={allocationMode}
                 onChange={(event) => setAllocationMode(event.target.value)}
               >
-                <option value="manual">保留 / 手动调整</option>
-                <option value="auto">按当前规则自动重新分配</option>
+                <option value="manual">{t("保留 / 手动调整")}</option><option value="auto">{t("按当前规则自动重新分配")}</option>
               </select>
             </label>
             <p className="muted">
-              仅“已确认”状态会占用床位；手动分配的人数之和必须等于住宿人数。
+              {t("仅“已确认”状态会占用床位；手动分配的人数之和必须等于住宿人数。")}
             </p>
             {allocationMode === "manual" && (
               <div className="allocation-resource-list">
@@ -199,13 +189,11 @@ function RequestCard({
                       <span>
                         <b>{resource.name}</b>
                         <small>
-                          容量 {resource.capacity}
-                          {resource.requires_sofa_consent ? " · 需接受 sofa" : ""}
-                          {resource.admin_only ? " · 隐藏备用位" : ""}
+                          {t("容量")} {resource.capacity}{resource.requires_sofa_consent ? ` · ${t("需接受 sofa")}` : ""}{resource.admin_only ? ` · ${t("隐藏备用位")}` : ""}
                         </small>
                       </span>
                       <input
-                        aria-label={`${resource.name} 分配人数`}
+                        aria-label={locale==="en"?`${resource.name} assigned people`:`${resource.name} 分配人数`}
                         name="allocation_seats"
                         type="number"
                         min={0}
@@ -216,12 +204,12 @@ function RequestCard({
                     </label>
                   );
                 })}
-                {resources.length === 0 && <p className="muted">这个住宿还没有可用睡位。</p>}
+                {resources.length === 0 && <p className="muted">{t("这个住宿还没有可用睡位。")}</p>}
               </div>
             )}
           </fieldset>
           <label>
-            备注
+            {t("备注")}
             <textarea
               name="note"
               rows={2}
@@ -229,7 +217,7 @@ function RequestCard({
               maxLength={1000}
             />
           </label>
-          <button className="primary">保存修改并重新检查</button>
+          <button className="primary">{t("保存修改并重新检查")}</button>
         </form>
         <form
           action={deleteRequest}
@@ -237,7 +225,7 @@ function RequestCard({
           onSubmit={(event) => {
             if (
               !window.confirm(
-                `确定永久删除 ${r.guest_name} 的这条住宿记录吗？对应床位会立即释放，私密链接也会失效。`,
+                locale==="en"?`Permanently delete ${r.guest_name}'s stay record? Assigned spaces will be released and the private link invalidated.`:`确定永久删除 ${r.guest_name} 的这条住宿记录吗？对应床位会立即释放，私密链接也会失效。`,
               )
             )
               event.preventDefault();
@@ -245,10 +233,9 @@ function RequestCard({
         >
           <input type="hidden" name="id" value={r.id} />
           <span>
-            <b>删除并释放</b>
-            <small>永久删除记录，并立即释放已安排的床位。</small>
+            <b>{t("删除并释放")}</b><small>{t("永久删除记录，并立即释放已安排的床位。")}</small>
           </span>
-          <button className="danger-button">删除记录</button>
+          <button className="danger-button">{t("删除记录")}</button>
         </form>
       </details>
     </article>
@@ -266,6 +253,7 @@ export default function RequestList({
   allocations: RequestAllocation[];
   today: string;
 }) {
+  const { t } = useI18n();
   const current = requests.filter((r) => r.ends_on > today);
   const archived = requests
     .filter((r) => r.ends_on <= today)
@@ -283,14 +271,12 @@ export default function RequestList({
   return (
     <AdminPanel
       eyebrow="REQUESTS"
-      title="申请与住宿记录"
-      description="先处理待确认申请，再查看即将入住和历史记录。"
-      count={pendingCount ? `${pendingCount} 个待处理` : `${current.length} 个当前记录`}
+      title={t("申请与住宿记录")} description={t("先处理待确认申请，再查看即将入住和历史记录。")} count={pendingCount ? `${pendingCount} ${t("个待处理")}` : `${current.length} ${t("个当前记录")}`}
       defaultOpen
     >
       <div className="request-list">
         {current.length === 0 && (
-          <p className="empty">目前没有待处理或未来住宿记录。</p>
+          <p className="empty">{t("目前没有待处理或未来住宿记录。")}</p>
         )}
         {current.map((r) => {
           const requestAllocations = allocations.filter(
@@ -309,26 +295,21 @@ export default function RequestList({
       {archived.length > 0 && (
         <details className="archive-panel">
           <summary>
-            Archive · 历史住宿记录 <span>{archived.length}</span>
+            Archive · {t("历史住宿记录")} <span>{archived.length}</span>
           </summary>
           <div className="archive-tools">
             <input
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="搜索昵称、住宿或日期…"
-              aria-label="搜索历史住宿记录"
+              placeholder={t("搜索昵称、住宿或日期…")} aria-label={t("搜索历史住宿记录")}
             />
             <select
               value={status}
               onChange={(e) => setStatus(e.target.value)}
-              aria-label="筛选历史记录状态"
+              aria-label={t("筛选历史记录状态")}
             >
-              <option value="all">全部状态</option>
-              <option value="approved">已确认</option>
-              <option value="rejected">已拒绝</option>
-              <option value="cancelled">已取消</option>
-              <option value="pending">待确认</option>
+              <option value="all">{t("全部状态")}</option><option value="approved">{t("已确认")}</option><option value="rejected">{t("已拒绝")}</option><option value="cancelled">{t("已取消")}</option><option value="pending">{t("待确认")}</option>
             </select>
           </div>
           <div className="request-list">
@@ -347,7 +328,7 @@ export default function RequestList({
                 );
               })
             ) : (
-              <p className="empty">没有找到符合条件的历史记录。</p>
+              <p className="empty">{t("没有找到符合条件的历史记录。")}</p>
             )}
           </div>
         </details>

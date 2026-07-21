@@ -12,6 +12,9 @@ import "./edit-request.css";
 import "./date-range.css";
 import "./home-settings.css";
 import "./admin-panels.css";
+import { getI18n } from "@/lib/i18n-server";
+import { LocaleProvider } from "./locale-provider";
+import LanguageSwitcher from "./language-switcher";
 
 const sans = DM_Sans({
   variable: "--font-sans",
@@ -27,17 +30,23 @@ export const metadata: Metadata = {
   description: "A private stay coordinator for friends.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const { locale } = await getI18n();
   return (
     <html
-      lang="zh-CN"
+      lang={locale}
       className={`${sans.variable} ${serif.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <LocaleProvider locale={locale}>
+          <LanguageSwitcher />
+          {children}
+        </LocaleProvider>
+      </body>
     </html>
   );
 }

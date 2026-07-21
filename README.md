@@ -35,6 +35,7 @@ private network details, or exact home location.
 ## Features
 
 - Mobile-first monthly availability and occupancy calendar
+- Chinese and English UI with a persistent language switcher across guest and Admin pages
 - Shared group key and optional guest-specific invitation keys
 - Request approval, rejection, cancellation, editing, and historical backfill
 - Private self-service links for guests to view or cancel requests
