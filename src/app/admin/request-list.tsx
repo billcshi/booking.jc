@@ -43,6 +43,27 @@ function RequestCard({
   const [allocationMode, setAllocationMode] = useState(
     r.status === "approved" ? "manual" : "auto",
   );
+  const [linkCopied, setLinkCopied] = useState(false);
+  const trackingPath = `/request/${r.manage_token}`;
+
+  async function copyTrackingLink() {
+    const trackingUrl = new URL(trackingPath, window.location.origin).toString();
+    try {
+      await navigator.clipboard.writeText(trackingUrl);
+      setLinkCopied(true);
+    } catch {
+      const input = document.createElement("textarea");
+      input.value = trackingUrl;
+      input.style.position = "fixed";
+      input.style.opacity = "0";
+      document.body.appendChild(input);
+      input.select();
+      const copied = document.execCommand("copy");
+      input.remove();
+      setLinkCopied(copied);
+    }
+  }
+
   return (
     <article className="request-card">
       <div className="request-top">
@@ -77,6 +98,20 @@ function RequestCard({
         <span>Sofa：{r.accepts_sofa ? t("可以") : t("不可以")}</span><span>{t("隐藏备用位")}：{r.accepts_air_mattress ? t("接受") : t("不接受")}</span>
         </>:null}
         {r.allocation && <strong>{t("安排")}：{r.allocation}</strong>}{r.note && <span>{t("备注")}：{r.note}</span>}
+      </div>
+      <div className="tracking-link-tools">
+        <span>
+          <b>{t("找回私密链接")}</b>
+          <small>{t("复制原 tracking link，不会让客人已有的链接失效。")}</small>
+        </span>
+        <div>
+          <button type="button" onClick={copyTrackingLink}>
+            {linkCopied ? t("已复制") : t("复制 tracking link")}
+          </button>
+          <a href={trackingPath} target="_blank" rel="noreferrer">
+            {t("打开链接")}
+          </a>
+        </div>
       </div>
       <details className="edit-request">
         <summary>{t("编辑这条记录")}</summary>

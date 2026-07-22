@@ -496,6 +496,21 @@ export default function BookingCalendar({
                 <small>{locale==="en"?`Do not share with other guests during this stay; final approval is up to ${hostDisplayName}`:`整段时间不与其他住客同住，最终由 ${hostDisplayName} 确认`}</small>
               </span>
             </label>
+            <label className="booking-note">
+              {locale === "en"
+                ? `Message for ${hostDisplayName} (optional)`
+                : `给 ${hostDisplayName} 留言（可选）`}
+              <textarea
+                name="note"
+                rows={3}
+                maxLength={1000}
+                placeholder={
+                  locale === "en"
+                    ? "For example: arrival time, something to bring, or anything else you would like to share"
+                    : "例如：预计到达时间、需要带什么，或其他想说的事情"
+                }
+              />
+            </label>
           </div>
           <button className="primary" disabled={!start || !end}>
             {locale==="en"?`Submit for ${hostDisplayName} approval`:`提交给 ${hostDisplayName} 确认`}

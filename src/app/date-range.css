@@ -69,3 +69,11 @@
   color: #705c7d;
   line-height: 1.4;
 }
+
+.quick-fields .booking-note {
+  grid-column: 1 / -1;
+}
+
+.quick-fields .booking-note textarea {
+  resize: vertical;
+}

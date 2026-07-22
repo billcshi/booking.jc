@@ -39,6 +39,7 @@ const en = {
   "目前没有待处理或未来住宿记录。": "No pending or upcoming stays.", "历史住宿记录": "Historical stays", "搜索昵称、住宿或日期…": "Search nickname, stay, or date…", "搜索历史住宿记录": "Search historical stays", "筛选历史记录状态": "Filter historical status",
   "全部状态": "All statuses", "没有找到符合条件的历史记录。": "No matching historical records.", "确认并安排": "Approve and assign", "拒绝": "Reject", "可以": "Yes", "不可以": "No", "接受": "Accepted", "不接受": "Not accepted",
   "隐藏备用位": "Hidden backup", "备注": "Note", "编辑这条记录": "Edit this record", "姓名 / 昵称": "Name / nickname", "状态": "Status", "床位分配": "Sleeping-space assignment", "分配方式": "Assignment mode",
+  "找回私密链接": "Recover private link", "复制原 tracking link，不会让客人已有的链接失效。": "Copy the original tracking link without invalidating the guest's existing link.", "复制 tracking link": "Copy tracking link", "已复制": "Copied", "打开链接": "Open link",
   "保留 / 手动调整": "Keep / adjust manually", "按当前规则自动重新分配": "Reassign automatically using current rules", "仅“已确认”状态会占用床位；手动分配的人数之和必须等于住宿人数。": "Only approved stays use capacity; manual assignments must add up to the party size.",
   "需接受 sofa": "sofa consent required", "这个住宿还没有可用睡位。": "This stay has no sleeping spaces.", "保存修改并重新检查": "Save and recheck", "删除并释放": "Delete and release",
   "永久删除记录，并立即释放已安排的床位。": "Permanently delete the record and release assigned spaces immediately.", "删除记录": "Delete record",
