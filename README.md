@@ -38,6 +38,8 @@ private network details, or exact home location.
 - Shared group key and optional guest-specific invitation keys
 - Request approval, rejection, cancellation, editing, and historical backfill
 - Private self-service links for guests to view or cancel requests
+- Host audit log, conflict previews, and a Trash workflow with capacity-safe restore and confirmed permanent deletion
+- Revocable private calendar feed, sanitized CSV/JSON exports, and an Admin-only health endpoint
 - Capacity-aware sleeping-space allocation across an entire date range
 - Admin controls to preserve, manually adjust, or automatically recalculate allocations
 - Optional sofa and hidden overflow capacity for the permanent home stay
@@ -199,6 +201,12 @@ be revealed from the calendar.
    transaction.
 5. The guest keeps the private management link to check status or cancel later.
 
+Deleting a stay record from the host console first moves it to Trash and immediately
+releases its sleeping-space allocation. Restoring an approved record reruns blackout,
+exclusive-stay, and capacity checks. A trashed record can also be permanently deleted
+after an explicit confirmation; permanent deletion cannot be undone and cascades to
+its allocations and change requests.
+
 For a trip, the host creates a temporary stay and enters one resource per line as
 `name | capacity`. Line order controls allocation priority. The host may also mark the
 permanent home unavailable for the trip dates.
@@ -237,6 +245,8 @@ allocated seats.
 - Admin and group sessions are signed, HTTP-only, same-site cookies.
 - Login and group-key attempts are rate-limited in process memory.
 - The request-detail route disables caching, referrers, and indexing.
+- Audit entries exclude guest names, messages, keys, passwords, and management tokens.
+- Calendar feeds are private bearer URLs that the host can rotate to revoke.
 - This is a small self-hosted application, not a hardened multi-tenant platform.
   Deploy it behind HTTPS, restrict administrative access, keep dependencies updated,
   and back up SQLite securely.
