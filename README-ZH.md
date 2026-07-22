@@ -7,16 +7,15 @@
 Docker 一键部署（需要 Git、Docker Compose 和 OpenSSL）：
 
 ```bash
-git clone YOUR_REPOSITORY_URL booking.jc && cd booking.jc && ./scripts/deploy-docker.sh
+git clone https://github.com/billcshi/booking.jc.git booking.jc && cd booking.jc && ./scripts/deploy-docker.sh
 ```
 
 裸服务器一键部署（需要 Git、Node.js 22、npm 和 OpenSSL）：
 
 ```bash
-git clone YOUR_REPOSITORY_URL booking.jc && cd booking.jc && ./scripts/deploy-server.sh
+git clone https://github.com/billcshi/booking.jc.git booking.jc && cd booking.jc && ./scripts/deploy-server.sh
 ```
 
-请把 `YOUR_REPOSITORY_URL` 替换为 GitHub **Code** 菜单中的 HTTPS 或 SSH 地址。
 首次运行会自动创建私有 `.env`、显示随机生成的 Admin 密码、初始化 SQLite，
 并显示随机全群 Key；这些值只在创建时输出，请立即保存。Docker 会在后台运行；
 裸服务器脚本以前台方式运行，方便交给 systemd、Supervisor 或托管平台管理。

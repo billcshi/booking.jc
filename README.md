@@ -7,16 +7,15 @@ English | [简体中文](README-ZH.md)
 Docker (requires Git, Docker Compose, and OpenSSL):
 
 ```bash
-git clone YOUR_REPOSITORY_URL booking.jc && cd booking.jc && ./scripts/deploy-docker.sh
+git clone https://github.com/billcshi/booking.jc.git booking.jc && cd booking.jc && ./scripts/deploy-docker.sh
 ```
 
 Bare Node.js server (requires Git, Node.js 22, npm, and OpenSSL):
 
 ```bash
-git clone YOUR_REPOSITORY_URL booking.jc && cd booking.jc && ./scripts/deploy-server.sh
+git clone https://github.com/billcshi/booking.jc.git booking.jc && cd booking.jc && ./scripts/deploy-server.sh
 ```
 
-Replace `YOUR_REPOSITORY_URL` with the HTTPS or SSH URL from GitHub's **Code** menu.
 On the first run, either command creates a private `.env`, prints the generated Admin
 password, initializes SQLite, and prints the random group key. Save both values when
 they appear. Docker runs in the background; the bare-server command remains in the
