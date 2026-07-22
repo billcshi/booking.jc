@@ -171,6 +171,7 @@ export async function updateRequest(form: FormData) {
     db.prepare("DELETE FROM allocations WHERE request_id=?").run(id);
     if (status==="approved" && !suggestAllocation(id)) throw new Error("capacity");
     db.prepare("UPDATE requests SET status=? WHERE id=?").run(status,id);
+    if(status!=="approved")db.prepare("UPDATE request_changes SET status='rejected',reviewed_at=CURRENT_TIMESTAMP WHERE request_id=? AND status='pending'").run(id);
   });
   try { tx.immediate(); } catch(error) { if(error instanceof Error&&["blocked","form","request_bounds"].includes(error.message))redirect(`/admin?error=${error.message}`);if(error instanceof Error&&error.message==="capacity")redirect("/admin?error=capacity");throw error; }
   revalidatePath("/"); revalidatePath("/admin"); redirect("/admin");
@@ -251,7 +252,7 @@ export async function editRequest(form: FormData) {
     const isHome = !current.stay_starts_on && !current.stay_ends_on;
     db.prepare("DELETE FROM allocations WHERE request_id=?").run(id);
     db.prepare(`UPDATE requests SET guest_name=?,starts_on=?,ends_on=?,party_size=?,
-      accepts_sofa=?,accepts_air_mattress=?,exclusive=?,note=?,status=? WHERE id=?`).run(
+      accepts_sofa=?,accepts_air_mattress=?,exclusive=?,note=?,host_note=?,status=? WHERE id=?`).run(
         guest,
         start,
         end,
@@ -260,9 +261,11 @@ export async function editRequest(form: FormData) {
         isHome && form.get("accepts_air_mattress") ? 1 : 0,
         form.get("exclusive") ? 1 : 0,
         text(form, "note", 1000),
+        text(form, "host_note", 1000),
         status,
         id,
       );
+    db.prepare("UPDATE request_changes SET status='rejected',reviewed_at=CURRENT_TIMESTAMP WHERE request_id=? AND status='pending'").run(id);
     if (status === "approved") {
       if (allocationMode === "auto") {
         if (!suggestAllocation(id)) throw new Error("capacity");
@@ -392,7 +395,7 @@ export async function addGuestDirectly(form: FormData) {
     if (!stay || (stay.starts_on&&start<stay.starts_on) || (stay.ends_on&&end>stay.ends_on)) throw new Error("form");
     if(db.prepare("SELECT id FROM blackouts WHERE stay_id=? AND starts_on < ? AND ends_on > ? LIMIT 1").get(stayId,end,start))throw new Error("blocked");
     const isHome=!stay.starts_on&&!stay.ends_on;
-    const id=Number(db.prepare(`INSERT INTO requests (stay_id,guest_name,contact,starts_on,ends_on,party_size,accepts_sofa,accepts_air_mattress,note,status,manage_token,exclusive)
+    const id=Number(db.prepare(`INSERT INTO requests (stay_id,guest_name,contact,starts_on,ends_on,party_size,accepts_sofa,accepts_air_mattress,host_note,status,manage_token,exclusive)
       VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`).run(stayId,guest,"",start,end,size,isHome&&form.get("accepts_sofa")?1:0,isHome&&form.get("accepts_air_mattress")?1:0,text(form,"note",500),"pending",token,form.get("exclusive")?1:0).lastInsertRowid);
     if(!suggestAllocation(id)) throw new Error("capacity");
     db.prepare("UPDATE requests SET status='approved' WHERE id=?").run(id);
@@ -411,8 +414,76 @@ export async function resetInviteKey(form:FormData){await requireAdmin();const i
 export async function toggleInviteKey(form:FormData){await requireAdmin();const id=Number(text(form,"id",20));db.prepare("UPDATE invite_keys SET active=CASE active WHEN 1 THEN 0 ELSE 1 END,version=version+1 WHERE id=?").run(id);revalidatePath("/admin");redirect("/admin")}
 
 export async function cancelOwnRequest(token:string) {
-  const tx=db.transaction(()=>{ db.prepare("UPDATE requests SET status='cancelled' WHERE manage_token=?").run(token); db.prepare("DELETE FROM allocations WHERE request_id IN (SELECT id FROM requests WHERE manage_token=?)").run(token); }); tx();
+  const tx=db.transaction(()=>{ db.prepare("UPDATE request_changes SET status='rejected',reviewed_at=CURRENT_TIMESTAMP WHERE request_id IN (SELECT id FROM requests WHERE manage_token=?) AND status='pending'").run(token); db.prepare("UPDATE requests SET status='cancelled' WHERE manage_token=?").run(token); db.prepare("DELETE FROM allocations WHERE request_id IN (SELECT id FROM requests WHERE manage_token=?)").run(token); }); tx();
   revalidatePath("/"); redirect(`/request/${token}?cancelled=1`);
+}
+
+export async function editOwnRequest(token:string,form:FormData){
+  if(!(await rateLimit("edit-request",20)))redirect(`/request/${token}?error=rate`);
+  const guest=text(form,"guest_name",80),start=text(form,"starts_on"),end=text(form,"ends_on"),size=Number(text(form,"party_size",20)),rawNote=String(form.get("note")??"").trim();
+  if(!guest||!validIsoDate(start)||!validIsoDate(end)||start>=end||nightsBetween(start,end)>90||!Number.isInteger(size)||size<1||size>8||rawNote.length>1000)redirect(`/request/${token}?error=form`);
+  let result:"updated"|"change_requested"="updated";
+  const tx=db.transaction(()=>{
+    const request=db.prepare(`SELECT q.id,q.status,q.stay_id,q.guest_name,q.starts_on,q.ends_on,q.party_size,
+      q.accepts_sofa,q.accepts_air_mattress,q.exclusive,
+      s.starts_on stay_starts_on,s.ends_on stay_ends_on
+      FROM requests q JOIN stays s ON s.id=q.stay_id WHERE q.manage_token=?`).get(token) as {id:number;status:string;stay_id:number;guest_name:string;starts_on:string;ends_on:string;party_size:number;accepts_sofa:number;accepts_air_mattress:number;exclusive:number;stay_starts_on:string|null;stay_ends_on:string|null}|undefined;
+    if(!request||!["pending","approved","rejected"].includes(request.status))throw new Error("status");
+    if((request.stay_starts_on&&start<request.stay_starts_on)||(request.stay_ends_on&&end>request.stay_ends_on))throw new Error("dates");
+    if(db.prepare("SELECT 1 FROM blackouts WHERE stay_id=? AND starts_on < ? AND ends_on > ? LIMIT 1").get(request.stay_id,end,start))throw new Error("blocked");
+    const isHome=!request.stay_starts_on&&!request.stay_ends_on,acceptsSofa=isHome&&form.get("accepts_sofa")?1:0,acceptsAirMattress=isHome&&form.get("accepts_air_mattress")?1:0,exclusive=form.get("exclusive")?1:0;
+    if(request.status==="pending"||request.status==="rejected"){
+      db.prepare(`UPDATE requests SET guest_name=?,starts_on=?,ends_on=?,party_size=?,accepts_sofa=?,
+        accepts_air_mattress=?,exclusive=?,note=?,status='pending' WHERE id=?`).run(guest,start,end,size,acceptsSofa,acceptsAirMattress,exclusive,rawNote,request.id);
+      return;
+    }
+    const pending=db.prepare("SELECT id FROM request_changes WHERE request_id=? AND status='pending'").get(request.id) as {id:number}|undefined;
+    const approvalFieldsUnchanged=guest===request.guest_name&&start===request.starts_on&&end===request.ends_on&&size===request.party_size&&acceptsSofa===request.accepts_sofa&&acceptsAirMattress===request.accepts_air_mattress&&exclusive===request.exclusive;
+    if(approvalFieldsUnchanged){
+      db.prepare("UPDATE requests SET note=? WHERE id=?").run(rawNote,request.id);
+      if(pending)db.prepare("UPDATE request_changes SET status='rejected',reviewed_at=CURRENT_TIMESTAMP WHERE id=?").run(pending.id);
+      return;
+    }
+    result="change_requested";
+    if(pending)db.prepare(`UPDATE request_changes SET guest_name=?,starts_on=?,ends_on=?,party_size=?,accepts_sofa=?,
+      accepts_air_mattress=?,exclusive=?,note=?,created_at=CURRENT_TIMESTAMP WHERE id=?`).run(guest,start,end,size,acceptsSofa,acceptsAirMattress,exclusive,rawNote,pending.id);
+    else db.prepare(`INSERT INTO request_changes (request_id,guest_name,starts_on,ends_on,party_size,accepts_sofa,accepts_air_mattress,exclusive,note)
+      VALUES (?,?,?,?,?,?,?,?,?)`).run(request.id,guest,start,end,size,acceptsSofa,acceptsAirMattress,exclusive,rawNote);
+  });
+  try{tx.immediate();}catch(error){if(error instanceof Error&&["blocked","dates","status"].includes(error.message))redirect(`/request/${token}?error=${error.message}`);throw error;}
+  revalidatePath("/");revalidatePath("/admin");revalidatePath(`/request/${token}`);
+  redirect(`/request/${token}?${result}=1`);
+}
+
+export async function reviewRequestChange(form:FormData){
+  await requireAdmin();
+  const changeId=Number(text(form,"change_id",20)),decision=text(form,"decision",20);
+  if(!Number.isInteger(changeId)||!["approve","reject"].includes(decision))redirect("/admin?error=form");
+  let token="";
+  const tx=db.transaction(()=>{
+    const change=db.prepare(`SELECT c.id,c.request_id,c.guest_name,c.starts_on,c.ends_on,c.party_size,c.accepts_sofa,
+      c.accepts_air_mattress,c.exclusive,c.note,q.status,q.stay_id,q.manage_token,
+      s.starts_on stay_starts_on,s.ends_on stay_ends_on
+      FROM request_changes c JOIN requests q ON q.id=c.request_id JOIN stays s ON s.id=q.stay_id
+      WHERE c.id=? AND c.status='pending'`).get(changeId) as {id:number;request_id:number;guest_name:string;starts_on:string;ends_on:string;party_size:number;accepts_sofa:number;accepts_air_mattress:number;exclusive:number;note:string;status:string;stay_id:number;manage_token:string;stay_starts_on:string|null;stay_ends_on:string|null}|undefined;
+    if(!change)throw new Error("form");
+    token=change.manage_token;
+    if(decision==="reject"){
+      db.prepare("UPDATE request_changes SET status='rejected',reviewed_at=CURRENT_TIMESTAMP WHERE id=?").run(change.id);
+      return;
+    }
+    if(change.status!=="approved")throw new Error("form");
+    if((change.stay_starts_on&&change.starts_on<change.stay_starts_on)||(change.stay_ends_on&&change.ends_on>change.stay_ends_on))throw new Error("dates");
+    if(db.prepare("SELECT 1 FROM blackouts WHERE stay_id=? AND starts_on < ? AND ends_on > ? LIMIT 1").get(change.stay_id,change.ends_on,change.starts_on))throw new Error("blocked");
+    db.prepare("DELETE FROM allocations WHERE request_id=?").run(change.request_id);
+    db.prepare(`UPDATE requests SET guest_name=?,starts_on=?,ends_on=?,party_size=?,accepts_sofa=?,
+      accepts_air_mattress=?,exclusive=?,note=? WHERE id=?`).run(change.guest_name,change.starts_on,change.ends_on,change.party_size,change.accepts_sofa,change.accepts_air_mattress,change.exclusive,change.note,change.request_id);
+    if(!suggestAllocation(change.request_id))throw new Error("capacity");
+    db.prepare("UPDATE request_changes SET status='approved',reviewed_at=CURRENT_TIMESTAMP WHERE id=?").run(change.id);
+  });
+  try{tx.immediate();}catch(error){if(error instanceof Error&&["blocked","capacity","dates","form"].includes(error.message))redirect(`/admin?error=${error.message}`);throw error;}
+  revalidatePath("/");revalidatePath("/admin");if(token)revalidatePath(`/request/${token}`);
+  redirect(`/admin?${decision==="approve"?"change_approved":"change_rejected"}=1`);
 }
 
 export async function cancelInviteRequest(form:FormData){
@@ -421,7 +492,7 @@ export async function cancelInviteRequest(form:FormData){
   const id=Number(text(form,"id",20));
   const tx=db.transaction(()=>{
     const result=db.prepare("UPDATE requests SET status='cancelled' WHERE id=? AND invite_key_id=? AND status IN ('pending','approved')").run(id,access.inviteKeyId);
-    if(result.changes)db.prepare("DELETE FROM allocations WHERE request_id=?").run(id);
+    if(result.changes){db.prepare("DELETE FROM allocations WHERE request_id=?").run(id);db.prepare("UPDATE request_changes SET status='rejected',reviewed_at=CURRENT_TIMESTAMP WHERE request_id=? AND status='pending'").run(id);}
   });
   tx();revalidatePath("/");revalidatePath("/my-requests");redirect("/my-requests?cancelled=1");
 }

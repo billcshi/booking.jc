@@ -44,37 +44,14 @@
   text-align: center;
 }
 
-.tracking-link-tools {
-  align-items: center;
-  background: #f1f5f2;
-  border: 1px solid #d8e1db;
-  border-radius: 10px;
+.tracking-link-actions {
   display: flex;
-  gap: 16px;
-  justify-content: space-between;
-  margin-top: 14px;
-  padding: 12px 14px;
-}
-
-.tracking-link-tools span,
-.tracking-link-tools b,
-.tracking-link-tools small {
-  display: block;
-}
-
-.tracking-link-tools small {
-  color: #68756d;
-  margin-top: 3px;
-}
-
-.tracking-link-tools > div {
-  display: flex;
-  flex: 0 0 auto;
   gap: 8px;
+  margin-top: 12px;
 }
 
-.tracking-link-tools button,
-.tracking-link-tools a {
+.tracking-link-actions button,
+.tracking-link-actions a {
   background: #fff;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -86,9 +63,96 @@
   white-space: nowrap;
 }
 
-@media(max-width:640px) {
-  .tracking-link-tools {
-    align-items: flex-start;
-    flex-direction: column;
-  }
+.request-change-review {
+  background: #fff7dc;
+  border: 1px solid #e6d59d;
+  border-radius: 10px;
+  margin-top: 14px;
+  padding: 16px;
+}
+
+.request-change-review h4 {
+  margin: 10px 0 8px;
+}
+
+.request-change-review p {
+  line-height: 1.6;
+  margin: 6px 0;
+}
+
+.request-change-review > small {
+  color: #75682f;
+  display: block;
+  margin-top: 8px;
+}
+
+.request-change-review > div {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.edit-request .request-change-review form {
+  background: none;
+  margin: 0;
+  padding: 0;
+}
+
+.request-receipt {
+  width: min(620px, 100%);
+}
+
+.request-receipt dd {
+  max-width: 65%;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
+.pending-change-summary {
+  background: #fff7dc;
+  border: 1px solid #e6d59d;
+  border-radius: 10px;
+  margin: 18px 0;
+  padding: 14px;
+}
+
+.pending-change-summary p {
+  margin: 9px 0;
+}
+
+.pending-change-summary small {
+  color: #75682f;
+}
+
+.request-self-edit {
+  border-bottom: 1px solid var(--line);
+  border-top: 1px solid var(--line);
+  margin: 22px 0;
+  padding: 14px 0;
+}
+
+.request-self-edit summary {
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.request-self-edit form {
+  background: #f7f6f1;
+  border-radius: 12px;
+  margin-top: 14px;
+  padding: 16px;
+}
+
+.request-option-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 22px;
+}
+
+.request-self-edit .primary {
+  width: 100%;
+}
+
+.cancel-request-form {
+  margin-top: 12px;
 }

@@ -26,8 +26,10 @@ export type InviteKey = { id:number; guest_name:string; code:string; version:num
 export type BookingRequest = {
   id: number; stay_id: number; stay_name: string; guest_name: string; contact: string;
   starts_on: string; ends_on: string; party_size: number; accepts_sofa: number; accepts_air_mattress:number;
-  note: string; status: string; exclusive:number; manage_token: string; created_at: string; allocation: string | null;
-  is_home:number;
+  note: string; host_note:string; status: string; exclusive:number; manage_token: string; created_at: string; allocation: string | null;
+  is_home:number; change_id:number|null; change_guest_name:string|null; change_starts_on:string|null; change_ends_on:string|null;
+  change_party_size:number|null; change_accepts_sofa:number|null; change_accepts_air_mattress:number|null; change_exclusive:number|null;
+  change_note:string|null; change_created_at:string|null;
 };
 
 export type GuestRequest = Pick<BookingRequest,"id"|"stay_name"|"starts_on"|"ends_on"|"party_size"|"status"|"exclusive"|"allocation">;
@@ -64,9 +66,13 @@ export function listInviteKeys(): InviteKey[] {
 
 export function listRequests(): BookingRequest[] {
   return db.prepare(`SELECT q.*, s.name stay_name, CASE WHEN s.starts_on IS NULL AND s.ends_on IS NULL THEN 1 ELSE 0 END is_home,
+    c.id change_id,c.guest_name change_guest_name,c.starts_on change_starts_on,c.ends_on change_ends_on,
+    c.party_size change_party_size,c.accepts_sofa change_accepts_sofa,c.accepts_air_mattress change_accepts_air_mattress,
+    c.exclusive change_exclusive,c.note change_note,c.created_at change_created_at,
     GROUP_CONCAT(r.name || ' × ' || a.seats, ', ') allocation
     FROM requests q JOIN stays s ON s.id=q.stay_id
     LEFT JOIN allocations a ON a.request_id=q.id LEFT JOIN resources r ON r.id=a.resource_id
+    LEFT JOIN request_changes c ON c.request_id=q.id AND c.status='pending'
     GROUP BY q.id ORDER BY CASE q.status WHEN 'pending' THEN 0 ELSE 1 END, q.starts_on, q.created_at`).all() as BookingRequest[];
 }
 

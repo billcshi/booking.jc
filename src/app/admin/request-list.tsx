@@ -6,7 +6,7 @@ import type {
   RequestAllocation,
   StayResource,
 } from "@/lib/db";
-import { deleteRequest, editRequest, updateRequest } from "@/app/actions";
+import { deleteRequest, editRequest, reviewRequestChange, updateRequest } from "@/app/actions";
 import AdminPanel from "./admin-panel";
 import { useI18n } from "../locale-provider";
 
@@ -25,6 +25,16 @@ function requestCardVersion(
     request.accepts_air_mattress,
     request.exclusive,
     request.note,
+    request.host_note,
+    request.change_id,
+    request.change_guest_name,
+    request.change_starts_on,
+    request.change_ends_on,
+    request.change_party_size,
+    request.change_accepts_sofa,
+    request.change_accepts_air_mattress,
+    request.change_exclusive,
+    request.change_note,
     allocations.map((allocation) => [allocation.resource_id, allocation.seats]),
   ]);
 }
@@ -97,24 +107,53 @@ function RequestCard({
         {r.is_home? <>
         <span>Sofa：{r.accepts_sofa ? t("可以") : t("不可以")}</span><span>{t("隐藏备用位")}：{r.accepts_air_mattress ? t("接受") : t("不接受")}</span>
         </>:null}
-        {r.allocation && <strong>{t("安排")}：{r.allocation}</strong>}{r.note && <span>{t("备注")}：{r.note}</span>}
-      </div>
-      <div className="tracking-link-tools">
-        <span>
-          <b>{t("找回私密链接")}</b>
-          <small>{t("复制原 tracking link，不会让客人已有的链接失效。")}</small>
-        </span>
-        <div>
-          <button type="button" onClick={copyTrackingLink}>
-            {linkCopied ? t("已复制") : t("复制 tracking link")}
-          </button>
-          <a href={trackingPath} target="_blank" rel="noreferrer">
-            {t("打开链接")}
-          </a>
-        </div>
+        {r.allocation && <strong>{t("安排")}：{r.allocation}</strong>}{r.note && <span>{t("住客留言")}：{r.note}</span>}
       </div>
       <details className="edit-request">
         <summary>{t("编辑这条记录")}</summary>
+        <div className="tracking-link-actions">
+          <button type="button" onClick={copyTrackingLink}>
+            {linkCopied ? t("已复制") : t("复制私密链接")}
+          </button>
+          <a href={trackingPath} target="_blank" rel="noreferrer">
+            {t("打开私密链接")}
+          </a>
+        </div>
+        {r.change_id && (
+          <section className="request-change-review">
+            <span className="status pending">{t("待审批修改")}</span>
+            <h4>{t("住客申请修改已确认住宿")}</h4>
+            <p>
+              {t("申请者")}：<b>{r.change_guest_name}</b> · {r.change_party_size} {t("人")}
+              {r.change_exclusive ? ` · 🔒 ${t("独占")}` : ""}
+            </p>
+            <p>
+              {r.starts_on} → {r.ends_on}<br />
+              <b>{t("改为")}</b> {r.change_starts_on} → {r.change_ends_on}
+            </p>
+            {r.is_home ? (
+              <p>
+                Sofa：{r.change_accepts_sofa ? t("可以") : t("不可以")} · {t("隐藏备用位")}：{r.change_accepts_air_mattress ? t("接受") : t("不接受")}
+              </p>
+            ) : null}
+            {r.change_note !== r.note && (
+              <p>{t("新住客留言")}：{r.change_note || t("（空）")}</p>
+            )}
+            <small>{t("批准后才会替换原申请资料，并重新检查和分配床位。")}</small>
+            <div>
+              <form action={reviewRequestChange}>
+                <input type="hidden" name="change_id" value={r.change_id} />
+                <input type="hidden" name="decision" value="approve" />
+                <button className="approve">{t("批准修改并重新分配")}</button>
+              </form>
+              <form action={reviewRequestChange}>
+                <input type="hidden" name="change_id" value={r.change_id} />
+                <input type="hidden" name="decision" value="reject" />
+                <button>{t("拒绝修改")}</button>
+              </form>
+            </div>
+          </section>
+        )}
         <form action={editRequest}>
           <input type="hidden" name="id" value={r.id} />
           <label>
@@ -244,12 +283,22 @@ function RequestCard({
             )}
           </fieldset>
           <label>
-            {t("备注")}
+            {t("住客留言")}
             <textarea
               name="note"
               rows={2}
               defaultValue={r.note}
               maxLength={1000}
+            />
+          </label>
+          <label>
+            {t("Host 私密备注")}
+            <textarea
+              name="host_note"
+              rows={2}
+              defaultValue={r.host_note}
+              maxLength={1000}
+              placeholder={t("只有 Host 可以查看和修改")}
             />
           </label>
           <button className="primary">{t("保存修改并重新检查")}</button>
@@ -302,7 +351,7 @@ export default function RequestList({
         .toLowerCase()
         .includes(query.toLowerCase()),
   );
-  const pendingCount = current.filter((request) => request.status === "pending").length;
+  const pendingCount = current.filter((request) => request.status === "pending" || request.change_id).length;
   return (
     <AdminPanel
       eyebrow="REQUESTS"

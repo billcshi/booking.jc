@@ -42,6 +42,8 @@ export default async function Admin({
     stay_deleted?: string;
     request_deleted?: string;
     home_updated?: string;
+    change_approved?: string;
+    change_rejected?: string;
   }>;
 }) {
   if (!(await isAdmin())) redirect("/admin/login");
@@ -65,6 +67,8 @@ export default async function Admin({
       stay_deleted,
       request_deleted,
       home_updated,
+      change_approved,
+      change_rejected,
     } = await searchParams;
   const errorMessages: Record<string,{zh:string;en:string}> = {
     key_format:{zh:"Key code 必须是 4–64 位，只能使用字母、数字、点、下划线和连字符。",en:"Key codes must be 4–64 characters using letters, numbers, dots, underscores, or hyphens."},
@@ -118,7 +122,7 @@ export default async function Admin({
           </div>
         </div>
         {error && <p className="alert">{errorMessage}</p>}
-        {added && <p className="success">{t("住客已直接加入并自动安排位置。")}</p>}{stay_edited && <p className="success">{t("旅行住宿已更新。")}</p>}{stay_deleted && <p className="success">{t("临时旅行住宿已删除。")}</p>}{request_deleted && <p className="success">{t("住宿记录已删除，对应床位已经释放。")}</p>}{home_updated && <p className="success">{t("固定住所和睡位设置已更新。")}</p>}{blocked && <p className="success">{t("关闭时段已保存。")}</p>}
+        {added && <p className="success">{t("住客已直接加入并自动安排位置。")}</p>}{stay_edited && <p className="success">{t("旅行住宿已更新。")}</p>}{stay_deleted && <p className="success">{t("临时旅行住宿已删除。")}</p>}{request_deleted && <p className="success">{t("住宿记录已删除，对应床位已经释放。")}</p>}{home_updated && <p className="success">{t("固定住所和睡位设置已更新。")}</p>}{blocked && <p className="success">{t("关闭时段已保存。")}</p>}{change_approved && <p className="success">{t("住宿修改已批准并重新分配床位。")}</p>}{change_rejected && <p className="success">{t("住宿修改已拒绝，原安排保持不变。")}</p>}
         <div className="admin-panels">
           <RequestList
             requests={requests}

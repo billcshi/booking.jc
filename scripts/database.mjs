@@ -146,6 +146,7 @@ export function initializeDatabase({
         party_size INTEGER NOT NULL CHECK(party_size > 0),
         accepts_sofa INTEGER NOT NULL DEFAULT 0,
         note TEXT NOT NULL DEFAULT '',
+        host_note TEXT NOT NULL DEFAULT '',
         status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','approved','rejected','cancelled')),
         manage_token TEXT NOT NULL UNIQUE,
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -156,6 +157,23 @@ export function initializeDatabase({
         resource_id INTEGER NOT NULL REFERENCES resources(id) ON DELETE CASCADE,
         seats INTEGER NOT NULL CHECK(seats > 0)
       );
+      CREATE TABLE IF NOT EXISTS request_changes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        request_id INTEGER NOT NULL REFERENCES requests(id) ON DELETE CASCADE,
+        guest_name TEXT NOT NULL,
+        starts_on TEXT NOT NULL,
+        ends_on TEXT NOT NULL,
+        party_size INTEGER NOT NULL CHECK(party_size > 0),
+        accepts_sofa INTEGER NOT NULL DEFAULT 0,
+        accepts_air_mattress INTEGER NOT NULL DEFAULT 0,
+        exclusive INTEGER NOT NULL DEFAULT 0,
+        note TEXT NOT NULL DEFAULT '',
+        status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','approved','rejected')),
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        reviewed_at TEXT
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS one_pending_request_change
+        ON request_changes(request_id) WHERE status='pending';
       CREATE TABLE IF NOT EXISTS blackouts (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         stay_id INTEGER NOT NULL REFERENCES stays(id) ON DELETE CASCADE,
@@ -189,6 +207,26 @@ export function initializeDatabase({
     }
     if (!requestColumns.some((column) => column.name === "invite_key_id")) {
       db.exec("ALTER TABLE requests ADD COLUMN invite_key_id INTEGER REFERENCES invite_keys(id) ON DELETE SET NULL");
+    }
+    if (!requestColumns.some((column) => column.name === "host_note")) {
+      db.exec("ALTER TABLE requests ADD COLUMN host_note TEXT NOT NULL DEFAULT ''");
+    }
+
+    const requestChangeColumns = db.prepare("PRAGMA table_info(request_changes)").all();
+    if (!requestChangeColumns.some((column) => column.name === "guest_name")) {
+      db.exec("ALTER TABLE request_changes ADD COLUMN guest_name TEXT NOT NULL DEFAULT ''");
+    }
+    if (!requestChangeColumns.some((column) => column.name === "party_size")) {
+      db.exec("ALTER TABLE request_changes ADD COLUMN party_size INTEGER NOT NULL DEFAULT 1");
+    }
+    if (!requestChangeColumns.some((column) => column.name === "accepts_sofa")) {
+      db.exec("ALTER TABLE request_changes ADD COLUMN accepts_sofa INTEGER NOT NULL DEFAULT 0");
+    }
+    if (!requestChangeColumns.some((column) => column.name === "accepts_air_mattress")) {
+      db.exec("ALTER TABLE request_changes ADD COLUMN accepts_air_mattress INTEGER NOT NULL DEFAULT 0");
+    }
+    if (!requestChangeColumns.some((column) => column.name === "exclusive")) {
+      db.exec("ALTER TABLE request_changes ADD COLUMN exclusive INTEGER NOT NULL DEFAULT 0");
     }
 
     const resourceColumns = db.prepare("PRAGMA table_info(resources)").all();
