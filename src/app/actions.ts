@@ -8,6 +8,7 @@ import { clearAdminSession, clearGroupSession, createAdminSession, createGroupSe
 import { rateLimit, requiredSecret, validIsoDate } from "@/lib/security";
 import { reviewRequestChangeInTransaction } from "../../scripts/request-change-transaction.mjs";
 import { cancelTrackedRequestInTransaction } from "../../scripts/tracking-transactions.mjs";
+import { permanentlyDeleteTrashedRequestInTransaction } from "../../scripts/trash-transactions.mjs";
 
 function text(form: FormData, name: string, max = 200) { const value=String(form.get(name) ?? "").trim(); return value.length<=max ? value : ""; }
 function same(a:string,b:string) { const x=Buffer.from(a), y=Buffer.from(b); return x.length===y.length && timingSafeEqual(x,y); }
@@ -301,6 +302,8 @@ export async function editRequest(form: FormData) {
 export async function deleteRequest(form:FormData){await requireAdmin();const id=Number(text(form,"id",20));const tx=db.transaction(()=>{db.prepare("DELETE FROM allocations WHERE request_id=?").run(id);db.prepare("UPDATE request_changes SET status='rejected',reviewed_at=CURRENT_TIMESTAMP WHERE request_id=? AND status='pending'").run(id);db.prepare("UPDATE requests SET deleted_at=CURRENT_TIMESTAMP WHERE id=? AND deleted_at IS NULL").run(id);addAuditLog("request.trashed","request",id)});tx();revalidatePath("/");revalidatePath("/admin");redirect("/admin?request_deleted=1")}
 
 export async function restoreRequest(form:FormData){await requireAdmin();const id=Number(text(form,"id",20));const tx=db.transaction(()=>{const request=db.prepare("SELECT stay_id,starts_on,ends_on,status FROM requests WHERE id=? AND deleted_at IS NOT NULL").get(id) as {stay_id:number;starts_on:string;ends_on:string;status:string}|undefined;if(!request)throw new Error("form");if(request.status==="approved"&&db.prepare("SELECT 1 FROM blackouts WHERE stay_id=? AND starts_on < ? AND ends_on > ? LIMIT 1").get(request.stay_id,request.ends_on,request.starts_on))throw new Error("blocked");db.prepare("UPDATE requests SET deleted_at=NULL WHERE id=?").run(id);if(request.status==="approved"&&!suggestAllocation(id))throw new Error("capacity");addAuditLog("request.restored","request",id)});try{tx.immediate()}catch(error){if(error instanceof Error&&["form","capacity","blocked"].includes(error.message))redirect(`/admin?error=${error.message}`);throw error}revalidatePath("/");revalidatePath("/admin");redirect("/admin?restored=1")}
+
+export async function permanentlyDeleteRequest(form:FormData){await requireAdmin();const id=Number(text(form,"id",20));try{permanentlyDeleteTrashedRequestInTransaction({db,requestId:id,audit:(requestId:number)=>addAuditLog("request.permanently_deleted","request",requestId)})}catch(error){if(error instanceof Error&&error.message==="form")redirect("/admin?error=form");throw error}revalidatePath("/");revalidatePath("/admin");redirect("/admin?permanently_deleted=1")}
 
 export async function rotateTrackingToken(form:FormData){await requireAdmin();const id=Number(text(form,"id",20)),token=randomBytes(24).toString("base64url");db.transaction(()=>{const result=db.prepare("UPDATE requests SET manage_token=?,tracking_last_accessed_at=NULL WHERE id=? AND deleted_at IS NULL").run(token,id);if(result.changes)addAuditLog("tracking.rotated","request",id)}) .immediate();revalidatePath("/admin");redirect("/admin?tracking_rotated=1")}
 

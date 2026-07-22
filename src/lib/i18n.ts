@@ -59,7 +59,7 @@ const en = {
   "保存 code": "Save code", "停用": "Disable", "启用": "Enable",
   "审计、导出与回收站":"Audit, exports, and Trash", "私密工具只对已登录 Host 开放。":"Private tools are available only to the signed-in host.",
   "私密日历订阅":"Private calendar feed", "轮换日历订阅地址":"Rotate calendar feed URL", "确定撤销旧日历订阅地址吗？":"Revoke the old calendar feed URL?",
-  "回收站":"Trash", "恢复并重新检查床位":"Restore and recheck capacity", "回收站为空。":"Trash is empty.", "管理操作审计日志":"Admin audit log",
+  "回收站":"Trash", "恢复并重新检查床位":"Restore and recheck capacity", "永久删除":"Delete permanently", "删除中…":"Deleting…", "确定永久删除这条记录吗？此操作无法撤销。":"Permanently delete this record? This cannot be undone.", "回收站记录已永久删除。":"The Trash record was permanently deleted.", "回收站为空。":"Trash is empty.", "管理操作审计日志":"Admin audit log",
   "确定撤销旧私密链接并生成新链接吗？":"Revoke the old private link and generate a new one?", "轮换 / 撤销旧链接":"Rotate / revoke old link", "最近访问":"Last accessed", "从未":"Never",
   "移入回收站并释放":"Move to Trash and release", "记录可由 Host 恢复；床位会立即释放。":"The host can restore the record; sleeping spaces are released immediately.", "移入回收站":"Move to Trash",
   "冲突预览：当前可安排":"Conflict preview: currently assignable", "冲突预览：包含不可住日期":"Conflict preview: includes an unavailable date", "冲突预览：与独占住宿冲突":"Conflict preview: conflicts with an exclusive stay", "冲突预览：当前容量不足":"Conflict preview: insufficient capacity",

@@ -7,6 +7,7 @@ import Database from "better-sqlite3";
 import { initializeDatabase } from "../scripts/database.mjs";
 import { reviewRequestChangeInTransaction } from "../scripts/request-change-transaction.mjs";
 import { cancelTrackedRequestInTransaction } from "../scripts/tracking-transactions.mjs";
+import { permanentlyDeleteTrashedRequestInTransaction } from "../scripts/trash-transactions.mjs";
 
 const temporaryDirectories = [];
 afterEach(() => {
@@ -140,5 +141,20 @@ test("a stale tracking page cannot cancel a trashed request", () => {
     VALUES (?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)`).run(stayId,"Guest","","2030-02-01","2030-02-03",1,"","approved","stale-token").lastInsertRowid);
   assert.throws(() => cancelTrackedRequestInTransaction({ db, token: "stale-token" }), /status/);
   assert.equal(db.prepare("SELECT status FROM requests WHERE id=?").get(id).status,"approved");
+  db.close();
+});
+
+test("only trashed requests can be permanently deleted with related data", () => {
+  const { db, requestId, resourceId } = approvedRequestWithChange();
+  assert.throws(() => permanentlyDeleteTrashedRequestInTransaction({ db, requestId }), /form/);
+  assert.ok(db.prepare("SELECT 1 FROM requests WHERE id=?").get(requestId));
+  db.prepare("UPDATE requests SET deleted_at=CURRENT_TIMESTAMP WHERE id=?").run(requestId);
+  db.prepare("INSERT INTO allocations (request_id,resource_id,seats) VALUES (?,?,1)").run(requestId,resourceId);
+  let auditedId;
+  permanentlyDeleteTrashedRequestInTransaction({ db, requestId, audit: (id) => { auditedId=id; } });
+  assert.equal(auditedId,requestId);
+  assert.equal(db.prepare("SELECT COUNT(*) count FROM requests WHERE id=?").get(requestId).count,0);
+  assert.equal(db.prepare("SELECT COUNT(*) count FROM allocations WHERE request_id=?").get(requestId).count,0);
+  assert.equal(db.prepare("SELECT COUNT(*) count FROM request_changes WHERE request_id=?").get(requestId).count,0);
   db.close();
 });
