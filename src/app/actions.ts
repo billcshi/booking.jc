@@ -40,7 +40,7 @@ export async function submitRequest(form: FormData) {
     if(db.prepare("SELECT id FROM blackouts WHERE stay_id=? AND starts_on < ? AND ends_on > ? LIMIT 1").get(stayId,end,start))throw new Error("blocked");
     const isHome=!stay.starts_on&&!stay.ends_on;
     const result=db.prepare(`INSERT INTO requests (stay_id,guest_name,contact,starts_on,ends_on,party_size,accepts_sofa,accepts_air_mattress,note,manage_token,exclusive,invite_key_id,submission_key)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(submission_key) DO NOTHING`).run(stayId,guest,"",start,end,size,isHome&&form.get("accepts_sofa")?1:0,isHome&&form.get("accepts_air_mattress")?1:0,text(form,"note",1000),token,form.get("exclusive")?1:0,access.inviteKeyId,submissionKey);
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT DO NOTHING`).run(stayId,guest,"",start,end,size,isHome&&form.get("accepts_sofa")?1:0,isHome&&form.get("accepts_air_mattress")?1:0,text(form,"note",1000),token,form.get("exclusive")?1:0,access.inviteKeyId,submissionKey);
     if(!result.changes)token=(db.prepare("SELECT manage_token FROM requests WHERE submission_key=?").get(submissionKey) as {manage_token:string}).manage_token;
   });
   try{tx.immediate();}catch(error){if(error instanceof Error&&["dates","blocked"].includes(error.message))redirect(`/?error=${error.message}`);throw error;}
@@ -415,7 +415,7 @@ export async function addGuestDirectly(form: FormData) {
     if(db.prepare("SELECT id FROM blackouts WHERE stay_id=? AND starts_on < ? AND ends_on > ? LIMIT 1").get(stayId,end,start))throw new Error("blocked");
     const isHome=!stay.starts_on&&!stay.ends_on;
     const inserted=db.prepare(`INSERT INTO requests (stay_id,guest_name,contact,starts_on,ends_on,party_size,accepts_sofa,accepts_air_mattress,host_note,status,manage_token,exclusive,submission_key)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(submission_key) DO NOTHING`).run(stayId,guest,"",start,end,size,isHome&&form.get("accepts_sofa")?1:0,isHome&&form.get("accepts_air_mattress")?1:0,text(form,"note",500),"pending",token,form.get("exclusive")?1:0,submissionKey);
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT DO NOTHING`).run(stayId,guest,"",start,end,size,isHome&&form.get("accepts_sofa")?1:0,isHome&&form.get("accepts_air_mattress")?1:0,text(form,"note",500),"pending",token,form.get("exclusive")?1:0,submissionKey);
     if(!inserted.changes)return;
     const id=Number(inserted.lastInsertRowid);
     if(!suggestAllocation(id)) throw new Error("capacity");

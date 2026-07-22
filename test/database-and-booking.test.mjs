@@ -44,6 +44,11 @@ test("legacy requests migrate safely and initialization is idempotent", () => {
     (stay_id,guest_name,contact,starts_on,ends_on,party_size,note,status,manage_token,submission_key)
     VALUES (1,'Duplicate','','2030-01-01','2030-01-02',1,'','pending','other-token',?)`)
     .run("00000000-0000-4000-8000-000000000001"), /UNIQUE/);
+  const upsert = db.prepare(`INSERT INTO requests
+    (stay_id,guest_name,contact,starts_on,ends_on,party_size,note,status,manage_token,submission_key)
+    VALUES (1,'Retry','','2030-01-01','2030-01-02',1,'','pending','retry-token',?)
+    ON CONFLICT DO NOTHING`).run("00000000-0000-4000-8000-000000000001");
+  assert.equal(upsert.changes, 0);
   db.close();
 
   db = initializeDatabase({ databasePath, requestKey: "replacement-must-not-win" });
