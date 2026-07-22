@@ -9,7 +9,8 @@
     "deploy:docker": "sh scripts/deploy-docker.sh",
     "deploy:server": "sh scripts/deploy-server.sh",
     "start": "node --env-file-if-exists=.env scripts/start.mjs",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "node --test test/*.test.mjs"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",

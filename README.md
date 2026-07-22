@@ -98,6 +98,7 @@ at `http://localhost:3000/admin`.
 | `SESSION_SECRET` | HMAC key for signed sessions | At least 32 random characters |
 | `APP_TIME_ZONE` | Time zone used for the admin calendar's current date | IANA zone such as `UTC` |
 | `HOST_PORT` | Host port published by Docker Compose | Defaults to `3000` |
+| `TRUST_PROXY` | Trust proxy-provided client IP headers for rate limiting | Set to `1` only behind a proxy that removes and rewrites incoming forwarding headers |
 | `INITIAL_HOME_NAME` | Initial permanent-stay display name | Non-sensitive labels only |
 | `INITIAL_HOME_LOCATION` | Initial location label | Non-sensitive labels only; defaults to `Seattle` |
 | `INITIAL_HOME_RESOURCES` | Semicolon-separated initial resource specification | Non-sensitive defaults using `name \| capacity \| flags` |
@@ -123,13 +124,14 @@ npm run db:init -- --interactive  # configure a fresh home interactively
 npm run deploy:docker  # build, initialize, and start with Docker Compose
 npm run deploy:server  # install, initialize, build, and start a bare Node server
 npm run lint     # run ESLint
+npm test         # run database and booking transaction tests
 npm run build    # create a production build
 npm start        # validate production variables and start Next.js
 ```
 
-There is not yet an automated test suite. Run lint and build checks before every
-change, then manually verify affected public and host workflows using disposable
-data.
+The automated suite covers schema upgrades and critical booking-change transaction
+behavior. Run tests, lint, and build checks before every change, then manually verify
+affected public and host workflows using disposable data.
 
 ## Docker deployment
 
@@ -153,7 +155,8 @@ docker compose up -d
 docker compose ps
 ```
 
-Compose stores SQLite under `./data` and publishes `${HOST_PORT:-3000}` on the host.
+Compose stores SQLite under `./data`, runs with the invoking user's UID/GID when using
+the deployment script, and publishes `${HOST_PORT:-3000}` on the host.
 See [docs/OPERATIONS.md](docs/OPERATIONS.md) for health checks, backup, restore,
 upgrade, and rollback procedures.
 

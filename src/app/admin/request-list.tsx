@@ -9,6 +9,7 @@ import type {
 import { deleteRequest, editRequest, reviewRequestChange, updateRequest } from "@/app/actions";
 import AdminPanel from "./admin-panel";
 import { useI18n } from "../locale-provider";
+import SubmitButton from "../submit-button";
 
 function requestCardVersion(
   request: BookingRequest,
@@ -128,12 +129,12 @@ function RequestCard({
             <form action={reviewRequestChange}>
               <input type="hidden" name="change_id" value={r.change_id} />
               <input type="hidden" name="decision" value="approve" />
-              <button className="approve">{t("批准修改并重新分配")}</button>
+              <SubmitButton className="approve" pendingLabel={t("处理中…")}>{t("批准修改并重新分配")}</SubmitButton>
             </form>
             <form action={reviewRequestChange}>
               <input type="hidden" name="change_id" value={r.change_id} />
               <input type="hidden" name="decision" value="reject" />
-              <button>{t("拒绝修改")}</button>
+              <SubmitButton pendingLabel={t("处理中…")}>{t("拒绝修改")}</SubmitButton>
             </form>
           </div>
         </section>

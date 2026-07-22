@@ -3,6 +3,7 @@ import Link from "next/link";
 import { cancelOwnRequest, editOwnRequest } from "@/app/actions";
 import { db } from "@/lib/db";
 import { getI18n } from "@/lib/i18n-server";
+import SubmitButton from "@/app/submit-button";
 
 export const dynamic = "force-dynamic";
 
@@ -170,7 +171,7 @@ export default async function RequestPage({
                     ? t("保存后，这条申请会重新进入待确认状态。")
                     : t("待确认申请的资料会直接更新。")}
               </p>
-              <button className="primary">{t("保存修改")}</button>
+              <SubmitButton className="primary" pendingLabel={t("保存中…")}>{t("保存修改")}</SubmitButton>
             </form>
           </details>
         )}

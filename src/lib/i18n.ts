@@ -46,7 +46,7 @@ const en = {
   "申请信息已更新。": "Request details updated.", "申请修改已提交给 Host 审批；原住宿安排暂时保持不变。": "Changes were submitted for host approval; the original stay remains unchanged for now.", "无法保存修改，请检查日期和填写内容。": "Could not save the changes. Check the dates and form details.",
   "修改待审批": "Changes pending", "申请改为": "Requested change:", "审批前仍保留上方的原日期和床位安排。": "The original dates and sleeping-space assignment remain in place until approval.", "修改日期或留言": "Edit request details", "给 Host 的留言（可选）": "Message for the host (optional)",
   "已确认申请修改姓名、日期、人数或住宿选项后需要 Host 再次批准；只修改留言会立即保存。": "Changes to the guest, dates, party size, or stay options require host approval; message-only changes save immediately.", "保存后，这条申请会重新进入待确认状态。": "After saving, this request will return to pending approval.", "待确认申请的资料会直接更新。": "Pending request details will update immediately.", "保存修改": "Save changes",
-  "住宿修改已批准并重新分配床位。": "Stay changes approved and sleeping spaces reassigned.", "住宿修改已拒绝，原安排保持不变。": "Stay changes rejected; the original stay remains unchanged.",
+  "住宿修改已批准并重新分配床位。": "Stay changes approved and sleeping spaces reassigned.", "住宿修改已拒绝，原安排保持不变。": "Stay changes rejected; the original stay remains unchanged.", "处理中…": "Working…", "保存中…": "Saving…",
   "保留 / 手动调整": "Keep / adjust manually", "按当前规则自动重新分配": "Reassign automatically using current rules", "仅“已确认”状态会占用床位；手动分配的人数之和必须等于住宿人数。": "Only approved stays use capacity; manual assignments must add up to the party size.",
   "需接受 sofa": "sofa consent required", "这个住宿还没有可用睡位。": "This stay has no sleeping spaces.", "保存修改并重新检查": "Save and recheck", "删除并释放": "Delete and release",
   "永久删除记录，并立即释放已安排的床位。": "Permanently delete the record and release assigned spaces immediately.", "删除记录": "Delete record",

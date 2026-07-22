@@ -9,7 +9,10 @@ export function requiredSecret(name: "ADMIN_USERNAME" | "ADMIN_PASSWORD" | "SESS
 
 export async function rateLimit(scope: string, limit: number, windowMs = 15 * 60_000) {
   const h = await headers();
-  const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || "local";
+  const trustProxy = process.env.TRUST_PROXY === "1";
+  const ip = trustProxy
+    ? h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || "proxy"
+    : "direct";
   const key = `${scope}:${ip}`;
   const now = Date.now();
   if (buckets.size > 5000) {

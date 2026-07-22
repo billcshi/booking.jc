@@ -65,10 +65,10 @@ export default async function Home({
     for (const block of blackouts.filter((b) => b.stay_id === stay.id)) {
       for (const day of nights(block.starts_on, block.ends_on)) {
         usage[day] ??= { approved: 0, hiddenApproved:0, people: 0, pending: 0, guests: [] };
-        usage[day].blocked = block.reason;
+        usage[day].blocked = unlocked ? block.reason : "Unavailable";
       }
     }
-    return { ...stay, nights: usage };
+    return { ...stay, location: unlocked ? stay.location : "", nights: usage };
   });
   return (
     <main>

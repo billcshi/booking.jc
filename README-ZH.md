@@ -98,6 +98,7 @@ Guest bed | 2 | normal; Sofa | 1 | sofa; Air mattress | 1 | hidden
 | `SESSION_SECRET` | Session HMAC 密钥 | 至少 32 位随机字符 |
 | `APP_TIME_ZONE` | Admin 日历计算“今天”时使用的时区 | IANA 时区，例如 `UTC` |
 | `HOST_PORT` | Docker Compose 对外端口 | 默认 `3000` |
+| `TRUST_PROXY` | 是否信任代理提供的客户端 IP 头用于限流 | 仅当代理会清除并重写外部转发头时设为 `1` |
 | `INITIAL_HOME_NAME` | 首次初始化的住所名称 | 只能填写不敏感的通用标签 |
 | `INITIAL_HOME_LOCATION` | 首次初始化的地点标签 | 只能填写不敏感的通用标签；默认 `Seattle` |
 | `INITIAL_HOME_RESOURCES` | 首次初始化的睡位列表 | 仅放不敏感的默认值，格式为 `名称 \| 容量 \| 标记` |
@@ -120,11 +121,12 @@ npm run db:init -- --interactive   # 交互配置全新数据库
 npm run deploy:docker               # Docker 构建、初始化并启动
 npm run deploy:server               # 裸机安装、初始化、构建并启动
 npm run lint                        # ESLint
+npm test                            # 数据库与预订事务测试
 npm run build                       # 生产构建
 npm start                           # 校验生产配置并启动
 ```
 
-项目目前没有自动化测试套件。提交代码前应运行 lint 和 build，并使用一次性数据手动验证受影响的公共及管理员流程。
+自动化测试覆盖数据库升级与关键住宿修改事务。提交代码前应运行 test、lint 和 build，并使用一次性数据手动验证受影响的公共及管理员流程。
 
 ## Docker 部署
 
@@ -152,7 +154,7 @@ docker compose up -d
 docker compose ps
 ```
 
-容器内服务监听 `3000`，宿主机端口由 `HOST_PORT` 决定。SQLite 保存在宿主机 `./data`，挂载到容器 `/app/data`。
+容器内服务监听 `3000`，宿主机端口由 `HOST_PORT` 决定。SQLite 保存在宿主机 `./data`，挂载到容器 `/app/data`；部署脚本会让容器使用当前宿主用户的 UID/GID，避免首次创建数据库时出现权限问题。
 
 详细健康检查、备份、恢复、升级和回滚方法见 [docs/OPERATIONS.md](docs/OPERATIONS.md)。
 

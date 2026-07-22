@@ -37,6 +37,7 @@ ensure_environment() {
     echo "SESSION_SECRET=$session_secret"
     echo "APP_TIME_ZONE=UTC"
     echo "HOST_PORT=$published_port"
+    echo "TRUST_PROXY=0"
     echo "INITIAL_HOME_NAME=Home"
     echo "INITIAL_HOME_LOCATION=Seattle"
     echo 'INITIAL_HOME_RESOURCES="Guest bed | 2 | normal; Sofa | 1 | sofa; Air mattress | 1 | hidden"'

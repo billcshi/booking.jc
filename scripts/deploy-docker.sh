@@ -6,6 +6,12 @@ set -eu
 require_command docker
 ensure_environment
 
+# Match the bind-mounted SQLite directory to the invoking host user.
+mkdir -p data
+BOOKING_UID=$(id -u)
+BOOKING_GID=$(id -g)
+export BOOKING_UID BOOKING_GID
+
 docker compose version >/dev/null
 docker compose build
 docker compose run --rm booking-jc npm run db:init

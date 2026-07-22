@@ -164,7 +164,7 @@ export default function BookingCalendar({
             key={s.id}
           >
             <b>{s.name}</b>
-            <span>{s.location}</span>
+            {s.location && <span>{s.location}</span>}
           </button>
         ))}
       </div>
