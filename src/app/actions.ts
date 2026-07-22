@@ -3,7 +3,7 @@
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { db, getSetting } from "@/lib/db";
+import { addAuditLog, db, getSetting } from "@/lib/db";
 import { clearAdminSession, clearGroupSession, createAdminSession, createGroupSession, createInviteSession, getGroupAccess, isAdmin } from "@/lib/auth";
 import { rateLimit, requiredSecret, validIsoDate } from "@/lib/security";
 import { reviewRequestChangeInTransaction } from "../../scripts/request-change-transaction.mjs";
@@ -16,7 +16,7 @@ function addDay(date:string,days:number) { return new Date(Date.parse(`${date}T0
 function validSubmissionKey(value:string){return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(value)}
 function peakAllocatedSeats(resourceId:number) {
   const allocations=db.prepare(`SELECT q.starts_on,q.ends_on,a.seats FROM allocations a JOIN requests q ON q.id=a.request_id
-    WHERE a.resource_id=? AND q.status='approved'`).all(resourceId) as Array<{starts_on:string;ends_on:string;seats:number}>;
+    WHERE a.resource_id=? AND q.deleted_at IS NULL AND q.status='approved'`).all(resourceId) as Array<{starts_on:string;ends_on:string;seats:number}>;
   const daily=new Map<string,number>();
   for(const allocation of allocations)for(let night=0;night<nightsBetween(allocation.starts_on,allocation.ends_on);night++){
     const day=addDay(allocation.starts_on,night);daily.set(day,(daily.get(day)??0)+allocation.seats);
@@ -69,7 +69,7 @@ export async function switchKey(){await clearGroupSession();redirect("/?change_k
 
 function suggestAllocation(requestId:number) {
   const req=db.prepare("SELECT * FROM requests WHERE id=?").get(requestId) as {stay_id:number;starts_on:string;ends_on:string;party_size:number;accepts_sofa:number;accepts_air_mattress:number;exclusive:number};
-  const overlaps=db.prepare("SELECT exclusive FROM requests WHERE stay_id=? AND id<>? AND status='approved' AND starts_on < ? AND ends_on > ?").all(req.stay_id,requestId,req.ends_on,req.starts_on) as Array<{exclusive:number}>;
+  const overlaps=db.prepare("SELECT exclusive FROM requests WHERE deleted_at IS NULL AND stay_id=? AND id<>? AND status='approved' AND starts_on < ? AND ends_on > ?").all(req.stay_id,requestId,req.ends_on,req.starts_on) as Array<{exclusive:number}>;
   if((req.exclusive&&overlaps.length>0)||overlaps.some(x=>x.exclusive))return false;
   const resources=db.prepare(`SELECT * FROM resources WHERE stay_id=? ORDER BY priority, capacity DESC`).all(req.stay_id) as Array<{id:number;name:string;capacity:number;admin_only:number;requires_sofa_consent:number}>;
   let remaining=req.party_size;
@@ -77,7 +77,7 @@ function suggestAllocation(requestId:number) {
     if (resource.requires_sofa_consent && !req.accepts_sofa) continue;
     if (resource.admin_only && !req.accepts_air_mattress) continue;
     const existing=db.prepare(`SELECT q.starts_on, q.ends_on, a.seats FROM allocations a JOIN requests q ON q.id=a.request_id
-      WHERE a.resource_id=? AND q.status='approved' AND q.starts_on < ? AND q.ends_on > ?`).all(resource.id,req.ends_on,req.starts_on) as Array<{starts_on:string;ends_on:string;seats:number}>;
+      WHERE a.resource_id=? AND q.deleted_at IS NULL AND q.status='approved' AND q.starts_on < ? AND q.ends_on > ?`).all(resource.id,req.ends_on,req.starts_on) as Array<{starts_on:string;ends_on:string;seats:number}>;
     let peak=0;
     for(let night=0;night<nightsBetween(req.starts_on,req.ends_on);night++) { const day=addDay(req.starts_on,night); peak=Math.max(peak,existing.filter(x=>x.starts_on<=day&&x.ends_on>day).reduce((sum,x)=>sum+x.seats,0)); }
     const seats=Math.min(remaining, Math.max(0,resource.capacity-peak));
@@ -176,6 +176,7 @@ export async function updateRequest(form: FormData) {
     if (status==="approved" && !suggestAllocation(id)) throw new Error("capacity");
     db.prepare("UPDATE requests SET status=? WHERE id=?").run(status,id);
     if(status!=="approved")db.prepare("UPDATE request_changes SET status='rejected',reviewed_at=CURRENT_TIMESTAMP WHERE request_id=? AND status='pending'").run(id);
+    addAuditLog(`request.${status}`,"request",id);
   });
   try { tx.immediate(); } catch(error) { if(error instanceof Error&&["blocked","form","request_bounds"].includes(error.message))redirect(`/admin?error=${error.message}`);if(error instanceof Error&&error.message==="capacity")redirect("/admin?error=capacity");throw error; }
   revalidatePath("/"); revalidatePath("/admin"); redirect("/admin");
@@ -278,6 +279,7 @@ export async function editRequest(form: FormData) {
         if (result !== "ok") throw new Error(result);
       }
     }
+    addAuditLog("request.edited","request",id);
   });
   try {
     tx.immediate();
@@ -295,7 +297,13 @@ export async function editRequest(form: FormData) {
   redirect("/admin?edited=1");
 }
 
-export async function deleteRequest(form:FormData){await requireAdmin();const id=Number(text(form,"id",20));const tx=db.transaction(()=>{db.prepare("DELETE FROM allocations WHERE request_id=?").run(id);db.prepare("DELETE FROM requests WHERE id=?").run(id)});tx();revalidatePath("/");revalidatePath("/admin");redirect("/admin?request_deleted=1")}
+export async function deleteRequest(form:FormData){await requireAdmin();const id=Number(text(form,"id",20));const tx=db.transaction(()=>{db.prepare("DELETE FROM allocations WHERE request_id=?").run(id);db.prepare("UPDATE request_changes SET status='rejected',reviewed_at=CURRENT_TIMESTAMP WHERE request_id=? AND status='pending'").run(id);db.prepare("UPDATE requests SET deleted_at=CURRENT_TIMESTAMP WHERE id=? AND deleted_at IS NULL").run(id);addAuditLog("request.trashed","request",id)});tx();revalidatePath("/");revalidatePath("/admin");redirect("/admin?request_deleted=1")}
+
+export async function restoreRequest(form:FormData){await requireAdmin();const id=Number(text(form,"id",20));const tx=db.transaction(()=>{const request=db.prepare("SELECT stay_id,starts_on,ends_on,status FROM requests WHERE id=? AND deleted_at IS NOT NULL").get(id) as {stay_id:number;starts_on:string;ends_on:string;status:string}|undefined;if(!request)throw new Error("form");if(request.status==="approved"&&db.prepare("SELECT 1 FROM blackouts WHERE stay_id=? AND starts_on < ? AND ends_on > ? LIMIT 1").get(request.stay_id,request.ends_on,request.starts_on))throw new Error("blocked");db.prepare("UPDATE requests SET deleted_at=NULL WHERE id=?").run(id);if(request.status==="approved"&&!suggestAllocation(id))throw new Error("capacity");addAuditLog("request.restored","request",id)});try{tx.immediate()}catch(error){if(error instanceof Error&&["form","capacity","blocked"].includes(error.message))redirect(`/admin?error=${error.message}`);throw error}revalidatePath("/");revalidatePath("/admin");redirect("/admin?restored=1")}
+
+export async function rotateTrackingToken(form:FormData){await requireAdmin();const id=Number(text(form,"id",20)),token=randomBytes(24).toString("base64url");db.prepare("UPDATE requests SET manage_token=?,tracking_last_accessed_at=NULL WHERE id=? AND deleted_at IS NULL").run(token,id);addAuditLog("tracking.rotated","request",id);revalidatePath("/admin");redirect("/admin?tracking_rotated=1")}
+
+export async function resetCalendarFeed(){await requireAdmin();db.prepare("UPDATE settings SET value=? WHERE key='calendar_feed_token'").run(randomBytes(24).toString("base64url"));addAuditLog("calendar_feed.rotated","setting",null);revalidatePath("/admin");redirect("/admin?feed_rotated=1")}
 
 export async function createStay(form: FormData) {
   await requireAdmin(); const name=text(form,"name",100), location=text(form,"location",120);
@@ -469,6 +477,7 @@ export async function reviewRequestChange(form:FormData){
   if(!Number.isInteger(changeId)||!["approve","reject"].includes(decision))redirect("/admin?error=form");
   let token="";
   try{token=reviewRequestChangeInTransaction({db,changeId,decision,suggestAllocation});}catch(error){if(error instanceof Error&&["blocked","capacity","dates","form"].includes(error.message))redirect(`/admin?error=${error.message}`);throw error;}
+  addAuditLog(`request_change.${decision === "approve" ? "approved" : "rejected"}`,"request_change",changeId);
   revalidatePath("/");revalidatePath("/admin");if(token)revalidatePath(`/request/${token}`);
   redirect(`/admin?${decision==="approve"?"change_approved":"change_rejected"}=1`);
 }

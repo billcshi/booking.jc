@@ -7,6 +7,8 @@ import {
   listInviteKeys,
   listRequestAllocations,
   listRequests,
+  listAuditLogs,
+  listDeletedRequests,
   listStays,
   listStayResources,
 } from "@/lib/db";
@@ -20,6 +22,7 @@ import AdminPanel from "./admin-panel";
 import { getI18n } from "@/lib/i18n-server";
 import { randomUUID } from "node:crypto";
 import SubmitButton from "@/app/submit-button";
+import OperationsPanel from "./operations-panel";
 export const dynamic = "force-dynamic";
 function todayInAppTimeZone() {
   return new Intl.DateTimeFormat("en-CA", {
@@ -58,6 +61,7 @@ export default async function Admin({
     inviteKeys = listInviteKeys(),
     groupKey = getSetting("group_key") ?? "",
     hostDisplayName = getSetting("host_display_name") ?? "Host",
+    auditLogs=listAuditLogs(), trash=listDeletedRequests(), feedToken=getSetting("calendar_feed_token")??"",
     {
       error,
       added,
@@ -214,6 +218,7 @@ export default async function Admin({
             inviteCreated={Boolean(invite_created)}
             inviteReset={Boolean(invite_reset)}
           />
+          <OperationsPanel logs={auditLogs} trash={trash} feedToken={feedToken} />
         </div>
       </div>
     </main>

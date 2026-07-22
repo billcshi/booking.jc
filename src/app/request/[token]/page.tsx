@@ -59,8 +59,9 @@ export default async function RequestPage({
     LEFT JOIN allocations ON allocations.request_id=q.id
     LEFT JOIN resources ON resources.id=allocations.resource_id
     LEFT JOIN request_changes c ON c.request_id=q.id AND c.status='pending'
-    WHERE q.manage_token=? GROUP BY q.id`).get(token) as TrackedRequest | undefined;
+    WHERE q.manage_token=? AND q.deleted_at IS NULL GROUP BY q.id`).get(token) as TrackedRequest | undefined;
   if (!request) notFound();
+  db.prepare("UPDATE requests SET tracking_last_accessed_at=CURRENT_TIMESTAMP WHERE id=?").run(request.id);
 
   const cancel = cancelOwnRequest.bind(null, token);
   const edit = editOwnRequest.bind(null, token);

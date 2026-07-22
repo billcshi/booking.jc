@@ -150,6 +150,8 @@ export function initializeDatabase({
         status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','approved','rejected','cancelled')),
         manage_token TEXT NOT NULL UNIQUE,
         submission_key TEXT UNIQUE,
+        deleted_at TEXT,
+        tracking_last_accessed_at TEXT,
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
       );
       CREATE TABLE IF NOT EXISTS allocations (
@@ -197,6 +199,14 @@ export function initializeDatabase({
         last_used_at TEXT,
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
       );
+      CREATE TABLE IF NOT EXISTS audit_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        action TEXT NOT NULL,
+        entity_type TEXT NOT NULL,
+        entity_id INTEGER,
+        summary TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
     `);
 
     const requestColumns = db.prepare("PRAGMA table_info(requests)").all();
@@ -215,6 +225,12 @@ export function initializeDatabase({
     if (!requestColumns.some((column) => column.name === "submission_key")) {
       db.exec("ALTER TABLE requests ADD COLUMN submission_key TEXT");
       db.exec("CREATE UNIQUE INDEX IF NOT EXISTS unique_request_submission_key ON requests(submission_key) WHERE submission_key IS NOT NULL");
+    }
+    if (!requestColumns.some((column) => column.name === "deleted_at")) {
+      db.exec("ALTER TABLE requests ADD COLUMN deleted_at TEXT");
+    }
+    if (!requestColumns.some((column) => column.name === "tracking_last_accessed_at")) {
+      db.exec("ALTER TABLE requests ADD COLUMN tracking_last_accessed_at TEXT");
     }
 
     const requestChangeColumns = db.prepare("PRAGMA table_info(request_changes)").all();
@@ -246,6 +262,8 @@ export function initializeDatabase({
     db.prepare("INSERT OR IGNORE INTO settings (key,value) VALUES ('group_key',?)").run(requestKey);
     db.prepare("INSERT OR IGNORE INTO settings (key,value) VALUES ('group_key_version','1')").run();
     db.prepare("INSERT OR IGNORE INTO settings (key,value) VALUES ('host_display_name','Host')").run();
+    db.prepare("INSERT OR IGNORE INTO settings (key,value) VALUES ('calendar_feed_token',?)").run(randomBytes(24).toString("base64url"));
+    db.prepare("INSERT OR IGNORE INTO settings (key,value) VALUES ('schema_version','2')").run();
 
     if (!db.prepare("SELECT id FROM stays WHERE starts_on IS NULL AND ends_on IS NULL LIMIT 1").get()) {
       db.transaction(() => {

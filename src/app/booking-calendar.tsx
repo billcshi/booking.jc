@@ -156,6 +156,7 @@ export default function BookingCalendar({
     }
     if (canEndAt(day)) setEnd(day);
   }
+  function moveCalendarFocus(day:string,days:number){const next=add(day,days);setFocus(next);if(monthOf(next)!==month)setMonth(monthOf(next));requestAnimationFrame(()=>document.querySelector<HTMLButtonElement>(`[data-calendar-day="${next}"]`)?.focus());}
   return (
     <div className="booking-shell">
       <div className="stay-tabs" aria-label={t("选择住宿地点")}>
@@ -319,6 +320,9 @@ export default function BookingCalendar({
                   key={day}
                   disabled={outsideTrip || (!showHistory && past)}
                   onClick={() => pickDate(day)}
+                  data-calendar-day={day}
+                  tabIndex={selected?0:-1}
+                  onKeyDown={(event)=>{const moves:Record<string,number>={ArrowLeft:-1,ArrowRight:1,ArrowUp:-7,ArrowDown:7};if(event.key in moves){event.preventDefault();moveCalendarFocus(day,moves[event.key])}}}
                   className={`${other ? "other-month " : ""}${past && !showHistory ? "past-hidden " : ""}${selected ? "focused " : ""}${inRange ? "in-range " : ""}${day === start ? "range-start " : ""}${day === end ? "range-end " : ""}${tier}`}
                   aria-label={`${pretty(day, locale)}，${outsideTrip ? t("非此次行程") : departure ? t("退房日") : use.blocked ? t("不可住") : use.exclusive ? t("独占住宿") : left ? `${t("余")} ${left} ${t("位")}` : overflowOnly ? t("常规床位已满，隐藏备用位可用") : t("已满")}${outsideTrip || departure ? "" : `，${use.pending} ${t("人待确认")}`}`}
                 >

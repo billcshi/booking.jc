@@ -57,6 +57,12 @@ const en = {
   "全群 Key": "Group key", "保存自定义 Key": "Save custom key", "全群 Key 已更新，旧 Key 和旧 session 均已失效。": "Group key updated; the old key and sessions are invalid.", "个人 Key 已创建。": "Personal key created.", "个人 Key 已更新，旧 code 已失效。": "Personal key updated; the old code is invalid.",
   "客人姓名 / 群昵称": "Guest name / group nickname", "自定义个人 Key": "Custom personal key", "创建个人 Key": "Create personal key", "还没有个人 Key。": "No personal keys yet.", "可用": "Active", "已停用": "Disabled", "使用": "used", "次": "times", "最近": "last used", "尚未使用": "never used",
   "保存 code": "Save code", "停用": "Disable", "启用": "Enable",
+  "审计、导出与回收站":"Audit, exports, and Trash", "私密工具只对已登录 Host 开放。":"Private tools are available only to the signed-in host.",
+  "私密日历订阅":"Private calendar feed", "轮换日历订阅地址":"Rotate calendar feed URL", "确定撤销旧日历订阅地址吗？":"Revoke the old calendar feed URL?",
+  "回收站":"Trash", "恢复并重新检查床位":"Restore and recheck capacity", "回收站为空。":"Trash is empty.", "管理操作审计日志":"Admin audit log",
+  "确定撤销旧私密链接并生成新链接吗？":"Revoke the old private link and generate a new one?", "轮换 / 撤销旧链接":"Rotate / revoke old link", "最近访问":"Last accessed", "从未":"Never",
+  "移入回收站并释放":"Move to Trash and release", "记录可由 Host 恢复；床位会立即释放。":"The host can restore the record; sleeping spaces are released immediately.", "移入回收站":"Move to Trash",
+  "冲突预览：当前可安排":"Conflict preview: currently assignable", "冲突预览：包含不可住日期":"Conflict preview: includes an unavailable date", "冲突预览：与独占住宿冲突":"Conflict preview: conflicts with an exclusive stay", "冲突预览：当前容量不足":"Conflict preview: insufficient capacity",
 } as const;
 
 export type MessageKey = keyof typeof en;

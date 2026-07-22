@@ -6,7 +6,7 @@ import type {
   RequestAllocation,
   StayResource,
 } from "@/lib/db";
-import { deleteRequest, editRequest, reviewRequestChange, updateRequest } from "@/app/actions";
+import { deleteRequest, editRequest, reviewRequestChange, rotateTrackingToken, updateRequest } from "@/app/actions";
 import AdminPanel from "./admin-panel";
 import { useI18n } from "../locale-provider";
 import SubmitButton from "../submit-button";
@@ -139,6 +139,7 @@ function RequestCard({
           </div>
         </section>
       )}
+      {(r.status==="pending"||r.change_id)&&<p className={r.conflict_preview==="clear"?"success":"alert"} aria-live="polite">{r.conflict_preview==="clear"?t("冲突预览：当前可安排"):r.conflict_preview==="blackout"?t("冲突预览：包含不可住日期"):r.conflict_preview==="exclusive"?t("冲突预览：与独占住宿冲突"):t("冲突预览：当前容量不足")}</p>}
       <div className="request-detail">
         {r.is_home? <>
         <span>Sofa：{r.accepts_sofa ? t("可以") : t("不可以")}</span><span>{t("隐藏备用位")}：{r.accepts_air_mattress ? t("接受") : t("不接受")}</span>
@@ -154,6 +155,11 @@ function RequestCard({
           <a href={trackingPath} target="_blank" rel="noreferrer">
             {t("打开私密链接")}
           </a>
+          <form action={rotateTrackingToken}>
+            <input type="hidden" name="id" value={r.id} />
+            <SubmitButton pendingLabel={t("处理中…")} confirmMessage={t("确定撤销旧私密链接并生成新链接吗？")}>{t("轮换 / 撤销旧链接")}</SubmitButton>
+          </form>
+          <small>{t("最近访问")}：{r.tracking_last_accessed_at ?? t("从未")}</small>
         </div>
         <form action={editRequest}>
           <input type="hidden" name="id" value={r.id} />
@@ -304,23 +310,12 @@ function RequestCard({
           </label>
           <button className="primary">{t("保存修改并重新检查")}</button>
         </form>
-        <form
-          action={deleteRequest}
-          className="danger-zone"
-          onSubmit={(event) => {
-            if (
-              !window.confirm(
-                locale==="en"?`Permanently delete ${r.guest_name}'s stay record? Assigned spaces will be released and the private link invalidated.`:`确定永久删除 ${r.guest_name} 的这条住宿记录吗？对应床位会立即释放，私密链接也会失效。`,
-              )
-            )
-              event.preventDefault();
-          }}
-        >
+        <form action={deleteRequest} className="danger-zone">
           <input type="hidden" name="id" value={r.id} />
           <span>
-            <b>{t("删除并释放")}</b><small>{t("永久删除记录，并立即释放已安排的床位。")}</small>
+            <b>{t("移入回收站并释放")}</b><small>{t("记录可由 Host 恢复；床位会立即释放。")}</small>
           </span>
-          <button className="danger-button">{t("删除记录")}</button>
+          <SubmitButton className="danger-button" pendingLabel={t("处理中…")} confirmMessage={locale==="en"?`Move ${r.guest_name}'s stay record to Trash? Assigned spaces will be released.`:`确定把 ${r.guest_name} 的住宿记录移入回收站吗？对应床位会立即释放。`}>{t("移入回收站")}</SubmitButton>
         </form>
       </details>
     </article>

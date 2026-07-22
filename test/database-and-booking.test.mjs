@@ -33,7 +33,11 @@ test("legacy requests migrate safely and initialization is idempotent", () => {
   let db = initializeDatabase({ databasePath, requestKey: "first-key" });
   assert.equal(db.prepare("SELECT host_note FROM requests WHERE id=1").get().host_note, "");
   assert.ok(db.prepare("PRAGMA table_info(requests)").all().some((column) => column.name === "submission_key"));
+  assert.ok(db.prepare("PRAGMA table_info(requests)").all().some((column) => column.name === "deleted_at"));
+  assert.ok(db.prepare("PRAGMA table_info(requests)").all().some((column) => column.name === "tracking_last_accessed_at"));
   assert.ok(db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='request_changes'").get());
+  assert.ok(db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='audit_logs'").get());
+  assert.match(db.prepare("SELECT value FROM settings WHERE key='calendar_feed_token'").get().value,/^[A-Za-z0-9_-]{32}$/);
   db.prepare("UPDATE requests SET submission_key=? WHERE id=1").run("00000000-0000-4000-8000-000000000001");
   assert.throws(() => db.prepare(`INSERT INTO requests
     (stay_id,guest_name,contact,starts_on,ends_on,party_size,note,status,manage_token,submission_key)
@@ -44,6 +48,7 @@ test("legacy requests migrate safely and initialization is idempotent", () => {
   db = initializeDatabase({ databasePath, requestKey: "replacement-must-not-win" });
   assert.equal(db.prepare("SELECT value FROM settings WHERE key='group_key'").get().value, "first-key");
   assert.equal(db.prepare("SELECT COUNT(*) count FROM requests").get().count, 1);
+  assert.equal(db.prepare("SELECT COUNT(*) count FROM settings WHERE key='calendar_feed_token'").get().count,1);
   db.close();
 });
 
