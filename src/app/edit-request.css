@@ -46,21 +46,37 @@
 
 .tracking-link-actions {
   display: flex;
+  align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
   margin-top: 12px;
 }
 
+.edit-request .tracking-link-actions > form {
+  background: transparent;
+  margin: 0;
+  padding: 0;
+}
+
 .tracking-link-actions button,
 .tracking-link-actions a {
+  align-items: center;
   background: #fff;
   border: 1px solid var(--line);
   border-radius: 8px;
   color: inherit;
   cursor: pointer;
+  display: inline-flex;
   font: inherit;
+  justify-content: center;
+  min-height: 42px;
   padding: 8px 11px;
   text-decoration: none;
   white-space: nowrap;
+}
+
+.tracking-link-actions small {
+  margin-left: 4px;
 }
 
 .request-change-review {
