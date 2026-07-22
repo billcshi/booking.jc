@@ -13,6 +13,7 @@ function same(a:string,b:string) { const x=Buffer.from(a), y=Buffer.from(b); ret
 async function requireAdmin() { if (!(await isAdmin())) redirect("/admin/login"); }
 function nightsBetween(start:string,end:string) { return Math.round((Date.parse(`${end}T00:00:00Z`)-Date.parse(`${start}T00:00:00Z`))/86_400_000); }
 function addDay(date:string,days:number) { return new Date(Date.parse(`${date}T00:00:00Z`)+days*86_400_000).toISOString().slice(0,10); }
+function validSubmissionKey(value:string){return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(value)}
 function peakAllocatedSeats(resourceId:number) {
   const allocations=db.prepare(`SELECT q.starts_on,q.ends_on,a.seats FROM allocations a JOIN requests q ON q.id=a.request_id
     WHERE a.resource_id=? AND q.status='approved'`).all(resourceId) as Array<{starts_on:string;ends_on:string;seats:number}>;
@@ -29,15 +30,17 @@ export async function submitRequest(form: FormData) {
   if (!access) redirect("/?error=locked");
   const stayId=Number(text(form,"stay_id",20)), guest=access.guestName??text(form,"guest_name",80);
   const start=text(form,"starts_on"), end=text(form,"ends_on"), size=Number(text(form,"party_size"));
-  if (!guest || !validIsoDate(start) || !validIsoDate(end) || start>=end || nightsBetween(start,end)>90 || !Number.isInteger(size) || size<1 || size>8) redirect("/?error=form");
-  const token=randomBytes(24).toString("base64url");
+  const submissionKey=text(form,"submission_key",64);
+  if (!guest || !validIsoDate(start) || !validIsoDate(end) || start>=end || nightsBetween(start,end)>90 || !Number.isInteger(size) || size<1 || size>8 || !validSubmissionKey(submissionKey)) redirect("/?error=form");
+  let token=randomBytes(24).toString("base64url");
   const tx=db.transaction(()=>{
     const stay=db.prepare("SELECT starts_on,ends_on FROM stays WHERE id=? AND is_public=1").get(stayId) as {starts_on:string|null;ends_on:string|null}|undefined;
     if (!stay || (stay.starts_on && start<stay.starts_on) || (stay.ends_on && end>stay.ends_on))throw new Error("dates");
     if(db.prepare("SELECT id FROM blackouts WHERE stay_id=? AND starts_on < ? AND ends_on > ? LIMIT 1").get(stayId,end,start))throw new Error("blocked");
     const isHome=!stay.starts_on&&!stay.ends_on;
-    db.prepare(`INSERT INTO requests (stay_id,guest_name,contact,starts_on,ends_on,party_size,accepts_sofa,accepts_air_mattress,note,manage_token,exclusive,invite_key_id)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`).run(stayId,guest,"",start,end,size,isHome&&form.get("accepts_sofa")?1:0,isHome&&form.get("accepts_air_mattress")?1:0,text(form,"note",1000),token,form.get("exclusive")?1:0,access.inviteKeyId);
+    const result=db.prepare(`INSERT INTO requests (stay_id,guest_name,contact,starts_on,ends_on,party_size,accepts_sofa,accepts_air_mattress,note,manage_token,exclusive,invite_key_id,submission_key)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(submission_key) DO NOTHING`).run(stayId,guest,"",start,end,size,isHome&&form.get("accepts_sofa")?1:0,isHome&&form.get("accepts_air_mattress")?1:0,text(form,"note",1000),token,form.get("exclusive")?1:0,access.inviteKeyId,submissionKey);
+    if(!result.changes)token=(db.prepare("SELECT manage_token FROM requests WHERE submission_key=?").get(submissionKey) as {manage_token:string}).manage_token;
   });
   try{tx.immediate();}catch(error){if(error instanceof Error&&["dates","blocked"].includes(error.message))redirect(`/?error=${error.message}`);throw error;}
   revalidatePath("/");
@@ -386,18 +389,22 @@ export async function addGuestDirectly(form: FormData) {
   await requireAdmin();
   const stayId=Number(text(form,"stay_id",20)), guest=text(form,"guest_name",80);
   const start=text(form,"starts_on"), end=text(form,"ends_on"), size=Number(text(form,"party_size"));
+  const submissionKey=text(form,"submission_key",64);
   if (!guest) redirect("/admin?error=name");
   if (!validIsoDate(start) || !validIsoDate(end) || start>=end) redirect("/admin?error=dates");
   if (nightsBetween(start,end)>3650) redirect("/admin?error=range");
   if (!Number.isInteger(size) || size<1 || size>8) redirect("/admin?error=people");
+  if(!validSubmissionKey(submissionKey))redirect("/admin?error=form");
   const token=randomBytes(24).toString("base64url");
   const tx=db.transaction(()=>{
     const stay=db.prepare("SELECT starts_on,ends_on FROM stays WHERE id=?").get(stayId) as {starts_on:string|null;ends_on:string|null}|undefined;
     if (!stay || (stay.starts_on&&start<stay.starts_on) || (stay.ends_on&&end>stay.ends_on)) throw new Error("form");
     if(db.prepare("SELECT id FROM blackouts WHERE stay_id=? AND starts_on < ? AND ends_on > ? LIMIT 1").get(stayId,end,start))throw new Error("blocked");
     const isHome=!stay.starts_on&&!stay.ends_on;
-    const id=Number(db.prepare(`INSERT INTO requests (stay_id,guest_name,contact,starts_on,ends_on,party_size,accepts_sofa,accepts_air_mattress,host_note,status,manage_token,exclusive)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`).run(stayId,guest,"",start,end,size,isHome&&form.get("accepts_sofa")?1:0,isHome&&form.get("accepts_air_mattress")?1:0,text(form,"note",500),"pending",token,form.get("exclusive")?1:0).lastInsertRowid);
+    const inserted=db.prepare(`INSERT INTO requests (stay_id,guest_name,contact,starts_on,ends_on,party_size,accepts_sofa,accepts_air_mattress,host_note,status,manage_token,exclusive,submission_key)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(submission_key) DO NOTHING`).run(stayId,guest,"",start,end,size,isHome&&form.get("accepts_sofa")?1:0,isHome&&form.get("accepts_air_mattress")?1:0,text(form,"note",500),"pending",token,form.get("exclusive")?1:0,submissionKey);
+    if(!inserted.changes)return;
+    const id=Number(inserted.lastInsertRowid);
     if(!suggestAllocation(id)) throw new Error("capacity");
     db.prepare("UPDATE requests SET status='approved' WHERE id=?").run(id);
   });

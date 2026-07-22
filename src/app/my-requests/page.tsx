@@ -5,6 +5,7 @@ import { switchKey } from "@/app/actions";
 import { getGroupAccess } from "@/lib/auth";
 import { listRequestsForInvite } from "@/lib/db";
 import { getI18n } from "@/lib/i18n-server";
+import SubmitButton from "@/app/submit-button";
 
 export const dynamic="force-dynamic";
 export default async function MyRequests({searchParams}:{searchParams:Promise<{cancelled?:string}>}){
@@ -22,7 +23,7 @@ export default async function MyRequests({searchParams}:{searchParams:Promise<{c
       <div><span className={`status ${r.status}`}>{labels[r.status]??r.status}</span><h2>{r.stay_name}</h2></div>
       <p>{t("入住")} {r.starts_on} → {t("退房")} {r.ends_on} · {r.party_size} {t("人")}{r.exclusive?` · 🔒 ${t("独占申请")}`:""}</p>
       {r.allocation&&<p className="muted">{t("安排")}：{r.allocation}</p>}
-      {['pending','approved'].includes(r.status)&&<form action={cancelInviteRequest}><input type="hidden" name="id" value={r.id}/><button>{t("取消这条申请")}</button></form>}
+      {['pending','approved'].includes(r.status)&&<form action={cancelInviteRequest}><input type="hidden" name="id" value={r.id}/><SubmitButton pendingLabel={t("取消中…")} confirmMessage={t("确定取消这条申请并释放床位吗？")}>{t("取消这条申请")}</SubmitButton></form>}
     </section>)}</div>}
     <div className="request-actions"><Link href="/">← {t("返回日历")}</Link><form action={switchKey}><button>{t("更换 Key")}</button></form></div>
   </article></main>;

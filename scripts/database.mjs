@@ -149,6 +149,7 @@ export function initializeDatabase({
         host_note TEXT NOT NULL DEFAULT '',
         status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','approved','rejected','cancelled')),
         manage_token TEXT NOT NULL UNIQUE,
+        submission_key TEXT UNIQUE,
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
       );
       CREATE TABLE IF NOT EXISTS allocations (
@@ -210,6 +211,10 @@ export function initializeDatabase({
     }
     if (!requestColumns.some((column) => column.name === "host_note")) {
       db.exec("ALTER TABLE requests ADD COLUMN host_note TEXT NOT NULL DEFAULT ''");
+    }
+    if (!requestColumns.some((column) => column.name === "submission_key")) {
+      db.exec("ALTER TABLE requests ADD COLUMN submission_key TEXT");
+      db.exec("CREATE UNIQUE INDEX IF NOT EXISTS unique_request_submission_key ON requests(submission_key) WHERE submission_key IS NOT NULL");
     }
 
     const requestChangeColumns = db.prepare("PRAGMA table_info(request_changes)").all();

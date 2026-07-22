@@ -18,6 +18,8 @@ import TripManager from "./trip-manager";
 import HomeManager from "./home-manager";
 import AdminPanel from "./admin-panel";
 import { getI18n } from "@/lib/i18n-server";
+import { randomUUID } from "node:crypto";
+import SubmitButton from "@/app/submit-button";
 export const dynamic = "force-dynamic";
 function todayInAppTimeZone() {
   return new Intl.DateTimeFormat("en-CA", {
@@ -80,7 +82,7 @@ export default async function Admin({
     trip_capacity:{zh:"正在使用的睡位不能删除，容量也不能低于现有分配。",en:"In-use spaces cannot be removed or reduced below current assignments."}, home_form:{zh:"请检查 Host 显示名、固定住所名称和地点。",en:"Check the host display name, home name, and location."},
     home_resources:{zh:"请至少保留一个公开睡位，并检查名称、容量和选项。",en:"Keep at least one public sleeping space and check its settings."}, home_capacity:{zh:"已有分配的睡位不能删除，容量也不能低于其历史峰值。",en:"Assigned spaces cannot be removed or reduced below their historical peak."},
     trip_active:{zh:"该旅行仍有待确认或已确认住客；请先取消或拒绝这些记录，再删除旅行。",en:"This trip still has pending or approved guests."}, form:{zh:"请检查填写内容。",en:"Check the form details."}, blocked:{zh:"所选日期包含不可住时段。",en:"The selected dates include an unavailable period."},
-    capacity:{zh:"空间不足，或与已有独占住宿冲突；请先调整其他预约。",en:"Not enough capacity, or the stay conflicts with an exclusive booking."},
+    capacity:{zh:"空间不足，或与已有独占住宿冲突；请先调整其他预约。",en:"Not enough capacity, or the stay conflicts with an exclusive booking."}, conflict:{zh:"所选不可住时段与已确认住宿冲突。",en:"The unavailable period conflicts with an approved stay."},
   };
   const selectedError=errorMessages[error??"capacity"]??errorMessages.capacity, errorMessage=en?selectedError.en:selectedError.zh;
   const today = todayInAppTimeZone();
@@ -135,7 +137,8 @@ export default async function Admin({
             eyebrow="QUICK ADD"
             title={t("直接安排住客")} description={t("录入未来安排或补录历史住宿，无需经过公开申请流程。")}
           >
-            <form action={addGuestDirectly}>
+          <form action={addGuestDirectly}>
+            <input type="hidden" name="submission_key" value={randomUUID()} />
               <div className="row">
                 <label>
                   {t("住宿")}
@@ -190,7 +193,7 @@ export default async function Admin({
                 {t("内部备注（可选）")}
                 <input name="note" maxLength={500} />
               </label>
-              <button className="primary">{t("直接加入并安排")}</button>
+              <SubmitButton className="primary" pendingLabel={t("提交中…")}>{t("直接加入并安排")}</SubmitButton>
             </form>
           </AdminPanel>
 

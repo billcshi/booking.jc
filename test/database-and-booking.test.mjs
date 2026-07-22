@@ -32,7 +32,13 @@ test("legacy requests migrate safely and initialization is idempotent", () => {
 
   let db = initializeDatabase({ databasePath, requestKey: "first-key" });
   assert.equal(db.prepare("SELECT host_note FROM requests WHERE id=1").get().host_note, "");
+  assert.ok(db.prepare("PRAGMA table_info(requests)").all().some((column) => column.name === "submission_key"));
   assert.ok(db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='request_changes'").get());
+  db.prepare("UPDATE requests SET submission_key=? WHERE id=1").run("00000000-0000-4000-8000-000000000001");
+  assert.throws(() => db.prepare(`INSERT INTO requests
+    (stay_id,guest_name,contact,starts_on,ends_on,party_size,note,status,manage_token,submission_key)
+    VALUES (1,'Duplicate','','2030-01-01','2030-01-02',1,'','pending','other-token',?)`)
+    .run("00000000-0000-4000-8000-000000000001"), /UNIQUE/);
   db.close();
 
   db = initializeDatabase({ databasePath, requestKey: "replacement-must-not-win" });

@@ -4,6 +4,7 @@ import BookingCalendar from "./booking-calendar";
 import { getGroupAccess } from "@/lib/auth";
 import { switchKey } from "./actions";
 import { getI18n } from "@/lib/i18n-server";
+import { randomUUID } from "node:crypto";
 
 export const dynamic = "force-dynamic";
 function nights(start: string, end: string) {
@@ -65,7 +66,7 @@ export default async function Home({
     for (const block of blackouts.filter((b) => b.stay_id === stay.id)) {
       for (const day of nights(block.starts_on, block.ends_on)) {
         usage[day] ??= { approved: 0, hiddenApproved:0, people: 0, pending: 0, guests: [] };
-        usage[day].blocked = unlocked ? block.reason : "Unavailable";
+        usage[day].blocked = unlocked ? block.reason : "__private__";
       }
     }
     return { ...stay, location: unlocked ? stay.location : "", nights: usage };
@@ -106,6 +107,7 @@ export default async function Home({
           guestName={access?.guestName ?? ""}
           hostDisplayName={hostDisplayName}
           timeZone={process.env.APP_TIME_ZONE ?? "UTC"}
+          submissionKey={randomUUID()}
         />
       </section>
     </main>

@@ -1,4 +1,5 @@
 import { headers } from "next/headers";
+import { createHash } from "node:crypto";
 import { requiredSecret as requiredConfiguredSecret } from "../../scripts/config.mjs";
 
 const buckets = new Map<string, { count: number; resetAt: number }>();
@@ -12,7 +13,7 @@ export async function rateLimit(scope: string, limit: number, windowMs = 15 * 60
   const trustProxy = process.env.TRUST_PROXY === "1";
   const ip = trustProxy
     ? h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || "proxy"
-    : "direct";
+    : `direct:${createHash("sha256").update([h.get("user-agent") ?? "unknown", h.get("accept-language") ?? "unknown"].join("\n")).digest("hex").slice(0,24)}`;
   const key = `${scope}:${ip}`;
   const now = Date.now();
   if (buckets.size > 5000) {

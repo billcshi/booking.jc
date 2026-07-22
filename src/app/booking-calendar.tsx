@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { submitRequest, unlockGroup } from "./actions";
 import { useI18n } from "./locale-provider";
+import SubmitButton from "./submit-button";
 
 type Night = {
   approved: number;
@@ -69,6 +70,7 @@ export default function BookingCalendar({
   guestName,
   hostDisplayName,
   timeZone,
+  submissionKey,
 }: {
   stays: StayView[];
   error?: string;
@@ -76,6 +78,7 @@ export default function BookingCalendar({
   guestName: string;
   hostDisplayName: string;
   timeZone: string;
+  submissionKey: string;
 }) {
   const { locale, t } = useI18n();
   const weekdays = locale === "en" ? ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] : ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
@@ -155,13 +158,14 @@ export default function BookingCalendar({
   }
   return (
     <div className="booking-shell">
-      <div className="stay-tabs">
+      <div className="stay-tabs" aria-label={t("选择住宿地点")}>
         {stays.map((s) => (
           <button
             type="button"
             className={s.id === stay.id ? "active" : ""}
             onClick={() => switchStay(s.id)}
             key={s.id}
+            aria-pressed={s.id === stay.id}
           >
             <b>{s.name}</b>
             {s.location && <span>{s.location}</span>}
@@ -386,7 +390,7 @@ export default function BookingCalendar({
           ) : night.blocked ? (
             <div className="blocked-panel">
               <strong>{t("这晚不可住")}</strong>
-              <span>{locale==="en"&&night.blocked.startsWith("外出：")?`Away: ${night.blocked.slice(3)}`:night.blocked}</span>
+              <span>{night.blocked === "__private__" ? t("不可住") : locale==="en"&&night.blocked.startsWith("外出：")?`Away: ${night.blocked.slice(3)}`:night.blocked}</span>
             </div>
           ) : (
             <>
@@ -447,6 +451,7 @@ export default function BookingCalendar({
       {unlocked && (
         <form action={submitRequest} className="quick-form">
           <input type="hidden" name="stay_id" value={stay.id} />
+          <input type="hidden" name="submission_key" value={submissionKey} />
           <input type="hidden" name="starts_on" value={start} />
           <input type="hidden" name="ends_on" value={end} />
           <div className="selection">
@@ -512,9 +517,9 @@ export default function BookingCalendar({
               />
             </label>
           </div>
-          <button className="primary" disabled={!start || !end}>
+          <SubmitButton className="primary" pendingLabel={t("提交中…")} disabled={!start || !end}>
             {locale==="en"?`Submit for ${hostDisplayName} approval`:`提交给 ${hostDisplayName} 确认`}
-          </button>
+          </SubmitButton>
         </form>
       )}
     </div>

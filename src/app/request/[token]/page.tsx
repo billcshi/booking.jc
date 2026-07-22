@@ -118,6 +118,9 @@ export default async function RequestPage({
             <span className="status pending">{t("修改待审批")}</span>
             <p><b>{request.change_guest_name}</b> · {request.change_party_size} {t("人")}</p>
             <p>{t("申请改为")} <b>{request.change_starts_on} → {request.change_ends_on}</b></p>
+            {request.is_home === 1 && <p>Sofa：{proposedSofa ? t("可以") : t("不可以")} · {t("隐藏备用位")}：{proposedAirMattress ? t("接受") : t("不接受")}</p>}
+            <p>{t("Stay type")}：{proposedExclusive ? `🔒 ${t("希望独占住宿")}` : t("共享住宿")}</p>
+            {proposedNote && <p>{t("住客留言")}：{proposedNote}</p>}
             <small>{t("审批前仍保留上方的原日期和床位安排。")}</small>
           </section>
         )}
@@ -179,7 +182,7 @@ export default async function RequestPage({
         <p className="muted">{t("保存这个私密链接，用来回来查看状态或取消申请。")}</p>
         {!['cancelled','rejected'].includes(request.status) && (
           <form action={cancel} className="cancel-request-form">
-            <button>{t("Cancel request")}</button>
+            <SubmitButton pendingLabel={t("取消中…")} confirmMessage={t("确定取消这条申请并释放床位吗？")}>{t("Cancel request")}</SubmitButton>
           </form>
         )}
       </article>
