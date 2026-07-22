@@ -6,6 +6,7 @@ import { join } from "node:path";
 import Database from "better-sqlite3";
 import { initializeDatabase } from "../scripts/database.mjs";
 import { reviewRequestChangeInTransaction } from "../scripts/request-change-transaction.mjs";
+import { cancelTrackedRequestInTransaction } from "../scripts/tracking-transactions.mjs";
 
 const temporaryDirectories = [];
 afterEach(() => {
@@ -105,5 +106,34 @@ test("blackout conflict leaves an approved request unchanged", () => {
   assert.throws(() => reviewRequestChangeInTransaction({ db, changeId, decision: "approve", suggestAllocation: () => true }), /blocked/);
   assert.equal(db.prepare("SELECT guest_name FROM requests WHERE id=?").get(requestId).guest_name, "Original");
   assert.equal(db.prepare("SELECT status FROM request_changes WHERE id=?").get(changeId).status, "pending");
+  db.close();
+});
+
+test("audit failure rolls back change approval atomically", () => {
+  const { db, requestId, resourceId, changeId } = approvedRequestWithChange();
+  assert.throws(() => reviewRequestChangeInTransaction({
+    db,
+    changeId,
+    decision: "approve",
+    suggestAllocation: (id) => {
+      db.prepare("INSERT INTO allocations (request_id,resource_id,seats) VALUES (?,?,1)").run(id,resourceId);
+      return true;
+    },
+    audit: () => { throw new Error("audit unavailable"); },
+  }), /audit unavailable/);
+  assert.equal(db.prepare("SELECT guest_name FROM requests WHERE id=?").get(requestId).guest_name, "Original");
+  assert.equal(db.prepare("SELECT status FROM request_changes WHERE id=?").get(changeId).status, "pending");
+  assert.equal(db.prepare("SELECT COUNT(*) count FROM allocations WHERE request_id=?").get(requestId).count, 1);
+  db.close();
+});
+
+test("a stale tracking page cannot cancel a trashed request", () => {
+  const db = initializeDatabase({ databasePath: temporaryDatabasePath(), requestKey: "test-key" });
+  const stayId = db.prepare("SELECT id FROM stays LIMIT 1").get().id;
+  const id = Number(db.prepare(`INSERT INTO requests
+    (stay_id,guest_name,contact,starts_on,ends_on,party_size,note,status,manage_token,deleted_at)
+    VALUES (?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)`).run(stayId,"Guest","","2030-02-01","2030-02-03",1,"","approved","stale-token").lastInsertRowid);
+  assert.throws(() => cancelTrackedRequestInTransaction({ db, token: "stale-token" }), /status/);
+  assert.equal(db.prepare("SELECT status FROM requests WHERE id=?").get(id).status,"approved");
   db.close();
 });

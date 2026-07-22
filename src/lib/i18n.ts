@@ -63,6 +63,7 @@ const en = {
   "确定撤销旧私密链接并生成新链接吗？":"Revoke the old private link and generate a new one?", "轮换 / 撤销旧链接":"Rotate / revoke old link", "最近访问":"Last accessed", "从未":"Never",
   "移入回收站并释放":"Move to Trash and release", "记录可由 Host 恢复；床位会立即释放。":"The host can restore the record; sleeping spaces are released immediately.", "移入回收站":"Move to Trash",
   "冲突预览：当前可安排":"Conflict preview: currently assignable", "冲突预览：包含不可住日期":"Conflict preview: includes an unavailable date", "冲突预览：与独占住宿冲突":"Conflict preview: conflicts with an exclusive stay", "冲突预览：当前容量不足":"Conflict preview: insufficient capacity",
+  "取消":"Cancel",
 } as const;
 
 export type MessageKey = keyof typeof en;

@@ -1,4 +1,4 @@
-export function reviewRequestChangeInTransaction({ db, changeId, decision, suggestAllocation }) {
+export function reviewRequestChangeInTransaction({ db, changeId, decision, suggestAllocation, audit = () => {} }) {
   let token = "";
   const transaction = db.transaction(() => {
     const change = db.prepare(`SELECT c.id,c.request_id,c.guest_name,c.starts_on,c.ends_on,c.party_size,c.accepts_sofa,
@@ -18,6 +18,7 @@ export function reviewRequestChangeInTransaction({ db, changeId, decision, sugge
     token = change.manage_token;
     if (decision === "reject") {
       db.prepare("UPDATE request_changes SET status='rejected',reviewed_at=CURRENT_TIMESTAMP WHERE id=?").run(change.id);
+      audit("request_change.rejected", "request_change", change.id);
       return;
     }
     if (change.request_status !== "approved") throw new Error("form");
@@ -33,6 +34,7 @@ export function reviewRequestChangeInTransaction({ db, changeId, decision, sugge
       );
     if (!suggestAllocation(change.request_id)) throw new Error("capacity");
     db.prepare("UPDATE request_changes SET status='approved',reviewed_at=CURRENT_TIMESTAMP WHERE id=?").run(change.id);
+    audit("request_change.approved", "request_change", change.id);
   });
   transaction.immediate();
   return token;

@@ -7,6 +7,7 @@ import { addAuditLog, db, getSetting } from "@/lib/db";
 import { clearAdminSession, clearGroupSession, createAdminSession, createGroupSession, createInviteSession, getGroupAccess, isAdmin } from "@/lib/auth";
 import { rateLimit, requiredSecret, validIsoDate } from "@/lib/security";
 import { reviewRequestChangeInTransaction } from "../../scripts/request-change-transaction.mjs";
+import { cancelTrackedRequestInTransaction } from "../../scripts/tracking-transactions.mjs";
 
 function text(form: FormData, name: string, max = 200) { const value=String(form.get(name) ?? "").trim(); return value.length<=max ? value : ""; }
 function same(a:string,b:string) { const x=Buffer.from(a), y=Buffer.from(b); return x.length===y.length && timingSafeEqual(x,y); }
@@ -301,9 +302,9 @@ export async function deleteRequest(form:FormData){await requireAdmin();const id
 
 export async function restoreRequest(form:FormData){await requireAdmin();const id=Number(text(form,"id",20));const tx=db.transaction(()=>{const request=db.prepare("SELECT stay_id,starts_on,ends_on,status FROM requests WHERE id=? AND deleted_at IS NOT NULL").get(id) as {stay_id:number;starts_on:string;ends_on:string;status:string}|undefined;if(!request)throw new Error("form");if(request.status==="approved"&&db.prepare("SELECT 1 FROM blackouts WHERE stay_id=? AND starts_on < ? AND ends_on > ? LIMIT 1").get(request.stay_id,request.ends_on,request.starts_on))throw new Error("blocked");db.prepare("UPDATE requests SET deleted_at=NULL WHERE id=?").run(id);if(request.status==="approved"&&!suggestAllocation(id))throw new Error("capacity");addAuditLog("request.restored","request",id)});try{tx.immediate()}catch(error){if(error instanceof Error&&["form","capacity","blocked"].includes(error.message))redirect(`/admin?error=${error.message}`);throw error}revalidatePath("/");revalidatePath("/admin");redirect("/admin?restored=1")}
 
-export async function rotateTrackingToken(form:FormData){await requireAdmin();const id=Number(text(form,"id",20)),token=randomBytes(24).toString("base64url");db.prepare("UPDATE requests SET manage_token=?,tracking_last_accessed_at=NULL WHERE id=? AND deleted_at IS NULL").run(token,id);addAuditLog("tracking.rotated","request",id);revalidatePath("/admin");redirect("/admin?tracking_rotated=1")}
+export async function rotateTrackingToken(form:FormData){await requireAdmin();const id=Number(text(form,"id",20)),token=randomBytes(24).toString("base64url");db.transaction(()=>{const result=db.prepare("UPDATE requests SET manage_token=?,tracking_last_accessed_at=NULL WHERE id=? AND deleted_at IS NULL").run(token,id);if(result.changes)addAuditLog("tracking.rotated","request",id)}) .immediate();revalidatePath("/admin");redirect("/admin?tracking_rotated=1")}
 
-export async function resetCalendarFeed(){await requireAdmin();db.prepare("UPDATE settings SET value=? WHERE key='calendar_feed_token'").run(randomBytes(24).toString("base64url"));addAuditLog("calendar_feed.rotated","setting",null);revalidatePath("/admin");redirect("/admin?feed_rotated=1")}
+export async function resetCalendarFeed(){await requireAdmin();db.transaction(()=>{db.prepare("UPDATE settings SET value=? WHERE key='calendar_feed_token'").run(randomBytes(24).toString("base64url"));addAuditLog("calendar_feed.rotated","setting",null)}) .immediate();revalidatePath("/admin");redirect("/admin?feed_rotated=1")}
 
 export async function createStay(form: FormData) {
   await requireAdmin(); const name=text(form,"name",100), location=text(form,"location",120);
@@ -314,10 +315,11 @@ export async function createStay(form: FormData) {
   if (!lines.length) return;
   const tx=db.transaction(()=>{
     const home=form.get("block_home")?db.prepare("SELECT id FROM stays WHERE starts_on IS NULL ORDER BY id LIMIT 1").get() as {id:number}|undefined:undefined;
-    if(home&&db.prepare("SELECT id FROM requests WHERE stay_id=? AND status='approved' AND starts_on < ? AND ends_on > ? LIMIT 1").get(home.id,end,start))throw new Error("conflict");
+    if(home&&db.prepare("SELECT id FROM requests WHERE deleted_at IS NULL AND stay_id=? AND status='approved' AND starts_on < ? AND ends_on > ? LIMIT 1").get(home.id,end,start))throw new Error("conflict");
     const id=Number(db.prepare("INSERT INTO stays (name,location,starts_on,ends_on) VALUES (?,?,?,?)").run(name,location,start,end).lastInsertRowid);
     lines.forEach((line,i)=>{ const [rawResource,cap]=line.split("|").map(x=>x.trim()); const resource=rawResource.slice(0,100); const parsed=Number(cap); const capacity=Number.isInteger(parsed)&&parsed>=1&&parsed<=8?parsed:1; if(!resource) throw new Error("Invalid resource"); db.prepare("INSERT INTO resources (stay_id,name,capacity,priority) VALUES (?,?,?,?)").run(id,resource,capacity,i+1); });
     if(home)db.prepare("INSERT INTO blackouts (stay_id,starts_on,ends_on,reason) VALUES (?,?,?,?)").run(home.id,start,end,`外出：${name}`);
+    addAuditLog("stay.created","stay",id);
   });
   try{tx.immediate();}catch(error){if(error instanceof Error&&error.message==="conflict")redirect("/admin?error=conflict");throw error;}
   revalidatePath("/"); redirect("/admin");
@@ -334,7 +336,7 @@ export async function editStay(form:FormData) {
   const tx=db.transaction(()=>{
     const stay=db.prepare("SELECT id,name,starts_on,ends_on FROM stays WHERE id=?").get(stayId) as {id:number;name:string;starts_on:string|null;ends_on:string|null}|undefined;
     if(!stay||!stay.starts_on||!stay.ends_on)throw new Error("trip_form");
-    const activeBounds=db.prepare("SELECT MIN(starts_on) first_night,MAX(ends_on) last_departure FROM requests WHERE stay_id=? AND status IN ('pending','approved')").get(stayId) as {first_night:string|null;last_departure:string|null};
+    const activeBounds=db.prepare("SELECT MIN(starts_on) first_night,MAX(ends_on) last_departure FROM requests WHERE deleted_at IS NULL AND stay_id=? AND status IN ('pending','approved')").get(stayId) as {first_night:string|null;last_departure:string|null};
     if((activeBounds.first_night&&start>activeBounds.first_night)||(activeBounds.last_departure&&end<activeBounds.last_departure))throw new Error("trip_dates");
     const blackoutBounds=db.prepare("SELECT MIN(starts_on) first_night,MAX(ends_on) last_departure FROM blackouts WHERE stay_id=?").get(stayId) as {first_night:string|null;last_departure:string|null};
     if((blackoutBounds.first_night&&start>blackoutBounds.first_night)||(blackoutBounds.last_departure&&end<blackoutBounds.last_departure))throw new Error("trip_dates");
@@ -342,11 +344,12 @@ export async function editStay(form:FormData) {
     for(let i=0;i<Math.min(existing.length,parsed.length);i++)if(parsed[i].capacity<peakAllocatedSeats(existing[i].id))throw new Error("trip_capacity");
     for(const resource of existing.slice(parsed.length))if(db.prepare("SELECT 1 FROM allocations WHERE resource_id=? LIMIT 1").get(resource.id))throw new Error("trip_capacity");
     const linkedHomeBlock=db.prepare("SELECT id,stay_id FROM blackouts WHERE starts_on=? AND ends_on=? AND reason=? LIMIT 1").get(stay.starts_on,stay.ends_on,`外出：${stay.name}`) as {id:number;stay_id:number}|undefined;
-    if(linkedHomeBlock&&db.prepare("SELECT 1 FROM requests WHERE stay_id=? AND status='approved' AND starts_on < ? AND ends_on > ? LIMIT 1").get(linkedHomeBlock.stay_id,end,start))throw new Error("conflict");
+    if(linkedHomeBlock&&db.prepare("SELECT 1 FROM requests WHERE deleted_at IS NULL AND stay_id=? AND status='approved' AND starts_on < ? AND ends_on > ? LIMIT 1").get(linkedHomeBlock.stay_id,end,start))throw new Error("conflict");
     db.prepare("UPDATE stays SET name=?,location=?,starts_on=?,ends_on=? WHERE id=?").run(name,location,start,end,stayId);
     parsed.forEach((resource,index)=>{const prior=existing[index];if(prior)db.prepare("UPDATE resources SET name=?,capacity=?,priority=? WHERE id=?").run(resource.name,resource.capacity,resource.priority,prior.id);else db.prepare("INSERT INTO resources (stay_id,name,capacity,priority) VALUES (?,?,?,?)").run(stayId,resource.name,resource.capacity,resource.priority);});
     for(const resource of existing.slice(parsed.length))db.prepare("DELETE FROM resources WHERE id=?").run(resource.id);
     if(linkedHomeBlock)db.prepare("UPDATE blackouts SET starts_on=?,ends_on=?,reason=? WHERE id=?").run(start,end,`外出：${name}`,linkedHomeBlock.id);
+    addAuditLog("stay.edited","stay",stayId);
   });
   try{tx.immediate();}catch(error){if(error instanceof Error&&["trip_form","trip_dates","trip_capacity","conflict"].includes(error.message))redirect(`/admin?error=${error.message}`);throw error;}
   revalidatePath("/");revalidatePath("/admin");redirect("/admin?stay_edited=1");
@@ -373,6 +376,7 @@ export async function editHome(form:FormData) {
     db.prepare("INSERT INTO settings (key,value) VALUES ('host_display_name',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").run(hostDisplayName);
     for(const resource of parsed){if(resource.id===null)db.prepare("INSERT INTO resources (stay_id,name,capacity,priority,admin_only,requires_sofa_consent) VALUES (?,?,?,?,?,?)").run(stayId,resource.name,resource.capacity,resource.priority,resource.adminOnly,resource.requiresSofaConsent);else db.prepare("UPDATE resources SET name=?,capacity=?,priority=?,admin_only=?,requires_sofa_consent=? WHERE id=? AND stay_id=?").run(resource.name,resource.capacity,resource.priority,resource.adminOnly,resource.requiresSofaConsent,resource.id,stayId);}
     for(const resource of existing){if(!submittedIds.includes(resource.id))db.prepare("DELETE FROM resources WHERE id=? AND stay_id=?").run(resource.id,stayId);}
+    addAuditLog("home.edited","stay",stayId);
   });
   try{tx.immediate();}catch(error){if(error instanceof Error&&error.message==="home_resources")redirect("/admin?error=home_resources");if(error instanceof Error&&error.message==="home_capacity")redirect("/admin?error=home_capacity");throw error;}
   revalidatePath("/");revalidatePath("/admin");redirect("/admin?home_updated=1");
@@ -384,10 +388,11 @@ export async function deleteStay(form:FormData) {
   const tx=db.transaction(()=>{
     const stay=db.prepare("SELECT id,name,starts_on,ends_on FROM stays WHERE id=?").get(stayId) as {id:number;name:string;starts_on:string|null;ends_on:string|null}|undefined;
     if(!stay||!stay.starts_on||!stay.ends_on)throw new Error("trip_form");
-    if(db.prepare("SELECT 1 FROM requests WHERE stay_id=? AND status IN ('pending','approved') LIMIT 1").get(stayId))throw new Error("trip_active");
+    if(db.prepare("SELECT 1 FROM requests WHERE deleted_at IS NULL AND stay_id=? AND status IN ('pending','approved') LIMIT 1").get(stayId))throw new Error("trip_active");
     const linkedHomeBlock=db.prepare("SELECT id FROM blackouts WHERE starts_on=? AND ends_on=? AND reason=? LIMIT 1").get(stay.starts_on,stay.ends_on,`外出：${stay.name}`) as {id:number}|undefined;
     if(linkedHomeBlock)db.prepare("DELETE FROM blackouts WHERE id=?").run(linkedHomeBlock.id);
     db.prepare("DELETE FROM stays WHERE id=?").run(stayId);
+    addAuditLog("stay.deleted","stay",stayId);
   });
   try{tx.immediate();}catch(error){if(error instanceof Error&&["trip_form","trip_active"].includes(error.message))redirect(`/admin?error=${error.message}`);throw error;}
   revalidatePath("/");revalidatePath("/admin");redirect("/admin?stay_deleted=1");
@@ -415,22 +420,23 @@ export async function addGuestDirectly(form: FormData) {
     const id=Number(inserted.lastInsertRowid);
     if(!suggestAllocation(id)) throw new Error("capacity");
     db.prepare("UPDATE requests SET status='approved' WHERE id=?").run(id);
+    addAuditLog("request.created_directly","request",id);
   });
   try{tx.immediate();}catch(error){if(error instanceof Error&&["form","blocked"].includes(error.message))redirect(`/admin?error=${error.message}`);if(error instanceof Error&&error.message==="capacity")redirect("/admin?error=capacity");throw error;}
   revalidatePath("/"); revalidatePath("/admin"); redirect("/admin?added=1");
 }
 
-export async function createBlackout(form:FormData){await requireAdmin();const stayId=Number(text(form,"stay_id",20)),start=text(form,"starts_on"),end=text(form,"ends_on"),reason=text(form,"reason",120)||"Host unavailable";if(!validIsoDate(start)||!validIsoDate(end)||start>=end)redirect("/admin?error=form");const tx=db.transaction(()=>{if(db.prepare("SELECT id FROM requests WHERE stay_id=? AND status='approved' AND starts_on < ? AND ends_on > ? LIMIT 1").get(stayId,end,start))throw new Error("conflict");db.prepare("INSERT INTO blackouts (stay_id,starts_on,ends_on,reason) VALUES (?,?,?,?)").run(stayId,start,end,reason);});try{tx.immediate();}catch(error){if(error instanceof Error&&error.message==="conflict")redirect("/admin?error=conflict");throw error;}revalidatePath("/");revalidatePath("/admin");redirect("/admin?blocked=1")}
-export async function removeBlackout(form:FormData){await requireAdmin();db.prepare("DELETE FROM blackouts WHERE id=?").run(Number(text(form,"id",20)));revalidatePath("/");revalidatePath("/admin");redirect("/admin")}
+export async function createBlackout(form:FormData){await requireAdmin();const stayId=Number(text(form,"stay_id",20)),start=text(form,"starts_on"),end=text(form,"ends_on"),reason=text(form,"reason",120)||"Host unavailable";if(!validIsoDate(start)||!validIsoDate(end)||start>=end)redirect("/admin?error=form");const tx=db.transaction(()=>{if(db.prepare("SELECT id FROM requests WHERE deleted_at IS NULL AND stay_id=? AND status='approved' AND starts_on < ? AND ends_on > ? LIMIT 1").get(stayId,end,start))throw new Error("conflict");const id=Number(db.prepare("INSERT INTO blackouts (stay_id,starts_on,ends_on,reason) VALUES (?,?,?,?)").run(stayId,start,end,reason).lastInsertRowid);addAuditLog("blackout.created","blackout",id);});try{tx.immediate();}catch(error){if(error instanceof Error&&error.message==="conflict")redirect("/admin?error=conflict");throw error;}revalidatePath("/");revalidatePath("/admin");redirect("/admin?blocked=1")}
+export async function removeBlackout(form:FormData){await requireAdmin();const id=Number(text(form,"id",20));db.transaction(()=>{const result=db.prepare("DELETE FROM blackouts WHERE id=?").run(id);if(result.changes)addAuditLog("blackout.deleted","blackout",id)}) .immediate();revalidatePath("/");revalidatePath("/admin");redirect("/admin")}
 function validKeyCode(code:string){return /^[A-Za-z0-9._-]{4,64}$/.test(code)}
 function keyCodeTaken(code:string,exceptInviteId?:number){if(code===getSetting("group_key"))return true;return Boolean(db.prepare("SELECT 1 FROM invite_keys WHERE code=? AND id<>? LIMIT 1").get(code,exceptInviteId??-1))}
-export async function resetGroupKey(form:FormData){await requireAdmin();const next=text(form,"code",64);if(!validKeyCode(next))redirect("/admin?error=key_format");if(db.prepare("SELECT 1 FROM invite_keys WHERE code=? LIMIT 1").get(next))redirect("/admin?error=key_conflict");const tx=db.transaction(()=>{db.prepare("UPDATE settings SET value=? WHERE key='group_key'").run(next);db.prepare("UPDATE settings SET value=CAST(CAST(value AS INTEGER)+1 AS TEXT) WHERE key='group_key_version'").run();});tx();revalidatePath("/admin");redirect("/admin?key_reset=1")}
-export async function createInviteKey(form:FormData){await requireAdmin();const guest=text(form,"guest_name",80),code=text(form,"code",64);if(!guest)redirect("/admin?error=name");if(!validKeyCode(code))redirect("/admin?error=key_format");if(keyCodeTaken(code))redirect("/admin?error=key_conflict");db.prepare("INSERT INTO invite_keys (guest_name,code) VALUES (?,?)").run(guest,code);revalidatePath("/admin");redirect("/admin?invite_created=1")}
-export async function resetInviteKey(form:FormData){await requireAdmin();const id=Number(text(form,"id",20)),code=text(form,"code",64);if(!validKeyCode(code))redirect("/admin?error=key_format");if(keyCodeTaken(code,id))redirect("/admin?error=key_conflict");db.prepare("UPDATE invite_keys SET code=?,version=version+1,active=1 WHERE id=?").run(code,id);revalidatePath("/admin");redirect("/admin?invite_reset=1")}
-export async function toggleInviteKey(form:FormData){await requireAdmin();const id=Number(text(form,"id",20));db.prepare("UPDATE invite_keys SET active=CASE active WHEN 1 THEN 0 ELSE 1 END,version=version+1 WHERE id=?").run(id);revalidatePath("/admin");redirect("/admin")}
+export async function resetGroupKey(form:FormData){await requireAdmin();const next=text(form,"code",64);if(!validKeyCode(next))redirect("/admin?error=key_format");if(db.prepare("SELECT 1 FROM invite_keys WHERE code=? LIMIT 1").get(next))redirect("/admin?error=key_conflict");const tx=db.transaction(()=>{db.prepare("UPDATE settings SET value=? WHERE key='group_key'").run(next);db.prepare("UPDATE settings SET value=CAST(CAST(value AS INTEGER)+1 AS TEXT) WHERE key='group_key_version'").run();addAuditLog("group_key.rotated","setting",null);});tx.immediate();revalidatePath("/admin");redirect("/admin?key_reset=1")}
+export async function createInviteKey(form:FormData){await requireAdmin();const guest=text(form,"guest_name",80),code=text(form,"code",64);if(!guest)redirect("/admin?error=name");if(!validKeyCode(code))redirect("/admin?error=key_format");if(keyCodeTaken(code))redirect("/admin?error=key_conflict");db.transaction(()=>{const id=Number(db.prepare("INSERT INTO invite_keys (guest_name,code) VALUES (?,?)").run(guest,code).lastInsertRowid);addAuditLog("invite_key.created","invite_key",id)}) .immediate();revalidatePath("/admin");redirect("/admin?invite_created=1")}
+export async function resetInviteKey(form:FormData){await requireAdmin();const id=Number(text(form,"id",20)),code=text(form,"code",64);if(!validKeyCode(code))redirect("/admin?error=key_format");if(keyCodeTaken(code,id))redirect("/admin?error=key_conflict");db.transaction(()=>{const result=db.prepare("UPDATE invite_keys SET code=?,version=version+1,active=1 WHERE id=?").run(code,id);if(result.changes)addAuditLog("invite_key.rotated","invite_key",id)}) .immediate();revalidatePath("/admin");redirect("/admin?invite_reset=1")}
+export async function toggleInviteKey(form:FormData){await requireAdmin();const id=Number(text(form,"id",20));db.transaction(()=>{const result=db.prepare("UPDATE invite_keys SET active=CASE active WHEN 1 THEN 0 ELSE 1 END,version=version+1 WHERE id=?").run(id);if(result.changes)addAuditLog("invite_key.toggled","invite_key",id)}) .immediate();revalidatePath("/admin");redirect("/admin")}
 
 export async function cancelOwnRequest(token:string) {
-  const tx=db.transaction(()=>{ db.prepare("UPDATE request_changes SET status='rejected',reviewed_at=CURRENT_TIMESTAMP WHERE request_id IN (SELECT id FROM requests WHERE manage_token=?) AND status='pending'").run(token); db.prepare("UPDATE requests SET status='cancelled' WHERE manage_token=?").run(token); db.prepare("DELETE FROM allocations WHERE request_id IN (SELECT id FROM requests WHERE manage_token=?)").run(token); }); tx();
+  try{cancelTrackedRequestInTransaction({db,token})}catch{redirect("/")}
   revalidatePath("/"); redirect(`/request/${token}?cancelled=1`);
 }
 
@@ -443,7 +449,7 @@ export async function editOwnRequest(token:string,form:FormData){
     const request=db.prepare(`SELECT q.id,q.status,q.stay_id,q.guest_name,q.starts_on,q.ends_on,q.party_size,
       q.accepts_sofa,q.accepts_air_mattress,q.exclusive,
       s.starts_on stay_starts_on,s.ends_on stay_ends_on
-      FROM requests q JOIN stays s ON s.id=q.stay_id WHERE q.manage_token=?`).get(token) as {id:number;status:string;stay_id:number;guest_name:string;starts_on:string;ends_on:string;party_size:number;accepts_sofa:number;accepts_air_mattress:number;exclusive:number;stay_starts_on:string|null;stay_ends_on:string|null}|undefined;
+      FROM requests q JOIN stays s ON s.id=q.stay_id WHERE q.manage_token=? AND q.deleted_at IS NULL`).get(token) as {id:number;status:string;stay_id:number;guest_name:string;starts_on:string;ends_on:string;party_size:number;accepts_sofa:number;accepts_air_mattress:number;exclusive:number;stay_starts_on:string|null;stay_ends_on:string|null}|undefined;
     if(!request||!["pending","approved","rejected"].includes(request.status))throw new Error("status");
     if((request.stay_starts_on&&start<request.stay_starts_on)||(request.stay_ends_on&&end>request.stay_ends_on))throw new Error("dates");
     if(db.prepare("SELECT 1 FROM blackouts WHERE stay_id=? AND starts_on < ? AND ends_on > ? LIMIT 1").get(request.stay_id,end,start))throw new Error("blocked");
@@ -476,8 +482,7 @@ export async function reviewRequestChange(form:FormData){
   const changeId=Number(text(form,"change_id",20)),decision=text(form,"decision",20);
   if(!Number.isInteger(changeId)||!["approve","reject"].includes(decision))redirect("/admin?error=form");
   let token="";
-  try{token=reviewRequestChangeInTransaction({db,changeId,decision,suggestAllocation});}catch(error){if(error instanceof Error&&["blocked","capacity","dates","form"].includes(error.message))redirect(`/admin?error=${error.message}`);throw error;}
-  addAuditLog(`request_change.${decision === "approve" ? "approved" : "rejected"}`,"request_change",changeId);
+  try{token=reviewRequestChangeInTransaction({db,changeId,decision,suggestAllocation,audit:()=>addAuditLog(`request_change.${decision === "approve" ? "approved" : "rejected"}`,"request_change",changeId)});}catch(error){if(error instanceof Error&&["blocked","capacity","dates","form"].includes(error.message))redirect(`/admin?error=${error.message}`);throw error;}
   revalidatePath("/");revalidatePath("/admin");if(token)revalidatePath(`/request/${token}`);
   redirect(`/admin?${decision==="approve"?"change_approved":"change_rejected"}=1`);
 }
