@@ -41,7 +41,7 @@ const en = {
   "隐藏备用位": "Hidden backup", "备注": "Note", "编辑这条记录": "Edit this record", "姓名 / 昵称": "Name / nickname", "状态": "Status", "床位分配": "Sleeping-space assignment", "分配方式": "Assignment mode",
   "找回私密链接": "Recover private link", "复制原 tracking link，不会让客人已有的链接失效。": "Copy the original tracking link without invalidating the guest's existing link.", "复制 tracking link": "Copy tracking link", "已复制": "Copied", "打开链接": "Open link",
   "复制私密链接": "Copy private link", "打开私密链接": "Open private link", "住客留言": "Guest message", "Host 私密备注": "Private host note", "只有 Host 可以查看和修改": "Only the host can view and edit this",
-  "待审批修改": "Pending change", "住客申请修改已确认住宿": "Guest requested changes to an approved stay", "申请者": "Guest", "改为": "Change to", "新住客留言": "New guest message", "（空）": "(empty)",
+  "已确认 · 有修改请求": "Approved · changes requested", "修改请求待审批": "Change request pending", "住客提交了住宿修改": "Guest submitted stay changes", "申请者": "Guest", "改为": "Change to", "新住客留言": "New guest message", "（空）": "(empty)",
   "批准后才会替换原申请资料，并重新检查和分配床位。": "The original request will only be replaced, rechecked, and reassigned after approval.", "批准修改并重新分配": "Approve and reassign", "拒绝修改": "Reject changes",
   "申请信息已更新。": "Request details updated.", "申请修改已提交给 Host 审批；原住宿安排暂时保持不变。": "Changes were submitted for host approval; the original stay remains unchanged for now.", "无法保存修改，请检查日期和填写内容。": "Could not save the changes. Check the dates and form details.",
   "修改待审批": "Changes pending", "申请改为": "Requested change:", "审批前仍保留上方的原日期和床位安排。": "The original dates and sleeping-space assignment remain in place until approval.", "修改日期或留言": "Edit request details", "给 Host 的留言（可选）": "Message for the host (optional)",

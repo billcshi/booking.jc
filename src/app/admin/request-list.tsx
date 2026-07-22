@@ -78,8 +78,8 @@ function RequestCard({
     <article className="request-card">
       <div className="request-top">
         <div>
-          <span className={`status ${r.status}`}>
-            {labels[r.status] ?? r.status}
+          <span className={`status ${r.status}${r.change_id ? " has-change" : ""}`}>
+            {r.change_id ? t("已确认 · 有修改请求") : (labels[r.status] ?? r.status)}
           </span>
           <h3>
             {r.guest_name} · {r.party_size} {t("人")} {r.exclusive ? `· 🔒 ${t("独占")}` : ""}
@@ -103,6 +103,41 @@ function RequestCard({
           </div>
         )}
       </div>
+      {r.change_id && (
+        <section className="request-change-review">
+          <span className="status pending">{t("修改请求待审批")}</span>
+          <h4>{t("住客提交了住宿修改")}</h4>
+          <p>
+            {t("申请者")}：<b>{r.change_guest_name}</b> · {r.change_party_size} {t("人")}
+            {r.change_exclusive ? ` · 🔒 ${t("独占")}` : ""}
+          </p>
+          <p>
+            {r.starts_on} → {r.ends_on}<br />
+            <b>{t("改为")}</b> {r.change_starts_on} → {r.change_ends_on}
+          </p>
+          {r.is_home ? (
+            <p>
+              Sofa：{r.change_accepts_sofa ? t("可以") : t("不可以")} · {t("隐藏备用位")}：{r.change_accepts_air_mattress ? t("接受") : t("不接受")}
+            </p>
+          ) : null}
+          {r.change_note !== r.note && (
+            <p>{t("新住客留言")}：{r.change_note || t("（空）")}</p>
+          )}
+          <small>{t("批准后才会替换原申请资料，并重新检查和分配床位。")}</small>
+          <div>
+            <form action={reviewRequestChange}>
+              <input type="hidden" name="change_id" value={r.change_id} />
+              <input type="hidden" name="decision" value="approve" />
+              <button className="approve">{t("批准修改并重新分配")}</button>
+            </form>
+            <form action={reviewRequestChange}>
+              <input type="hidden" name="change_id" value={r.change_id} />
+              <input type="hidden" name="decision" value="reject" />
+              <button>{t("拒绝修改")}</button>
+            </form>
+          </div>
+        </section>
+      )}
       <div className="request-detail">
         {r.is_home? <>
         <span>Sofa：{r.accepts_sofa ? t("可以") : t("不可以")}</span><span>{t("隐藏备用位")}：{r.accepts_air_mattress ? t("接受") : t("不接受")}</span>
@@ -119,41 +154,6 @@ function RequestCard({
             {t("打开私密链接")}
           </a>
         </div>
-        {r.change_id && (
-          <section className="request-change-review">
-            <span className="status pending">{t("待审批修改")}</span>
-            <h4>{t("住客申请修改已确认住宿")}</h4>
-            <p>
-              {t("申请者")}：<b>{r.change_guest_name}</b> · {r.change_party_size} {t("人")}
-              {r.change_exclusive ? ` · 🔒 ${t("独占")}` : ""}
-            </p>
-            <p>
-              {r.starts_on} → {r.ends_on}<br />
-              <b>{t("改为")}</b> {r.change_starts_on} → {r.change_ends_on}
-            </p>
-            {r.is_home ? (
-              <p>
-                Sofa：{r.change_accepts_sofa ? t("可以") : t("不可以")} · {t("隐藏备用位")}：{r.change_accepts_air_mattress ? t("接受") : t("不接受")}
-              </p>
-            ) : null}
-            {r.change_note !== r.note && (
-              <p>{t("新住客留言")}：{r.change_note || t("（空）")}</p>
-            )}
-            <small>{t("批准后才会替换原申请资料，并重新检查和分配床位。")}</small>
-            <div>
-              <form action={reviewRequestChange}>
-                <input type="hidden" name="change_id" value={r.change_id} />
-                <input type="hidden" name="decision" value="approve" />
-                <button className="approve">{t("批准修改并重新分配")}</button>
-              </form>
-              <form action={reviewRequestChange}>
-                <input type="hidden" name="change_id" value={r.change_id} />
-                <input type="hidden" name="decision" value="reject" />
-                <button>{t("拒绝修改")}</button>
-              </form>
-            </div>
-          </section>
-        )}
         <form action={editRequest}>
           <input type="hidden" name="id" value={r.id} />
           <label>
@@ -338,9 +338,13 @@ export default function RequestList({
   today: string;
 }) {
   const { t } = useI18n();
-  const current = requests.filter((r) => r.ends_on > today);
+  const changeRequests = requests
+    .filter((request) => request.change_id)
+    .sort((a, b) => (a.change_created_at ?? "").localeCompare(b.change_created_at ?? ""));
+  const current = requests.filter((request) => !request.change_id && request.ends_on > today);
+  const activeRequests = [...changeRequests, ...current];
   const archived = requests
-    .filter((r) => r.ends_on <= today)
+    .filter((request) => !request.change_id && request.ends_on <= today)
     .sort((a, b) => b.ends_on.localeCompare(a.ends_on));
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("all");
@@ -351,18 +355,18 @@ export default function RequestList({
         .toLowerCase()
         .includes(query.toLowerCase()),
   );
-  const pendingCount = current.filter((request) => request.status === "pending" || request.change_id).length;
+  const pendingCount = activeRequests.filter((request) => request.status === "pending" || request.change_id).length;
   return (
     <AdminPanel
       eyebrow="REQUESTS"
-      title={t("申请与住宿记录")} description={t("先处理待确认申请，再查看即将入住和历史记录。")} count={pendingCount ? `${pendingCount} ${t("个待处理")}` : `${current.length} ${t("个当前记录")}`}
+      title={t("申请与住宿记录")} description={t("先处理待确认申请，再查看即将入住和历史记录。")} count={pendingCount ? `${pendingCount} ${t("个待处理")}` : `${activeRequests.length} ${t("个当前记录")}`}
       defaultOpen
     >
       <div className="request-list">
-        {current.length === 0 && (
+        {activeRequests.length === 0 && (
           <p className="empty">{t("目前没有待处理或未来住宿记录。")}</p>
         )}
-        {current.map((r) => {
+        {activeRequests.map((r) => {
           const requestAllocations = allocations.filter(
             (allocation) => allocation.request_id === r.id,
           );

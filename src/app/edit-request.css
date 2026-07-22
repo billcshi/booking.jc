@@ -71,6 +71,11 @@
   padding: 16px;
 }
 
+.status.has-change {
+  background: #f5e8ba;
+  color: #755b06;
+}
+
 .request-change-review h4 {
   margin: 10px 0 8px;
 }
@@ -92,10 +97,16 @@
   margin-top: 12px;
 }
 
-.edit-request .request-change-review form {
-  background: none;
+.request-change-review form {
   margin: 0;
-  padding: 0;
+}
+
+.request-change-review button {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  cursor: pointer;
+  padding: 9px 13px;
 }
 
 .request-receipt {
