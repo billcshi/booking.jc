@@ -25,6 +25,10 @@ export default async function MyRequests({searchParams}:{searchParams:Promise<{c
       {r.allocation&&<p className="muted">{t("安排")}：{r.allocation}</p>}
       {['pending','approved'].includes(r.status)&&<form action={cancelInviteRequest}><input type="hidden" name="id" value={r.id}/><SubmitButton pendingLabel={t("取消中…")} confirmMessage={t("确定取消这条申请并释放床位吗？")}>{t("取消这条申请")}</SubmitButton></form>}
     </section>)}</div>}
-    <div className="request-actions"><Link href="/">← {t("返回日历")}</Link><form action={switchKey}><button>{t("更换 Key")}</button></form></div>
+    <div className="request-actions">
+      <Link href="/">← {t("返回日历")}</Link>
+      <a href="/my-requests/calendar.ics">{t("导出我的日历")}</a>
+      <form action={switchKey}><button>{t("更换 Key")}</button></form>
+    </div>
   </article></main>;
 }

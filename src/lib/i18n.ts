@@ -5,7 +5,7 @@ const en = {
   "我的申请": "My requests", "更换 Key": "Change key", "选你要住的晚上": "Choose the nights you want to stay",
   "点日期看谁会来，再选择入住和退房。": "Select a date to see who is coming, then choose check-in and check-out.",
   "Key code 不正确或已停用。": "The key code is incorrect or disabled.", "尝试次数太多，请稍后再试。": "Too many attempts. Please try again later.",
-  "请先输入 key code 解锁。": "Enter a key code to unlock the calendar.", "待确认": "Pending", "已确认": "Approved", "已拒绝": "Rejected", "已取消": "Cancelled",
+  "请先输入 key code 解锁。": "Enter a key code to unlock the calendar.", "待确认": "Pending", "已确认": "Approved", "已拒绝": "Rejected", "已取消": "Cancelled", "导出我的日历": "Export my calendar",
   "这里集中显示由你的个人 Key 提交的全部住宿申请。": "All stay requests submitted with your personal key appear here.",
   "申请已取消，对应床位已经释放。": "The request was cancelled and its sleeping space released.", "还没有用这枚 Key 提交过申请。": "No requests have been submitted with this key yet.",
   "入住": "Check-in", "退房": "Check-out", "人": "people", "独占申请": "Exclusive request", "安排": "Arrangement", "取消这条申请": "Cancel this request", "返回日历": "Back to calendar",
