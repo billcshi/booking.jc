@@ -113,6 +113,9 @@ export default async function RequestPage({
           {request.allocation && <div><dt>{t("Arrangement")}</dt><dd>{request.allocation}</dd></div>}
           {request.note && <div><dt>{t("住客留言")}</dt><dd>{request.note}</dd></div>}
         </dl>
+        {request.status === "approved" && (
+          <p><a href={`/request/${token}/calendar.ics`}>{t("导出我的日历")}</a></p>
+        )}
 
         {request.change_id && (
           <section className="pending-change-summary">
