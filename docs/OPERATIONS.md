@@ -35,6 +35,11 @@ For a bare Node.js deployment, run `./scripts/deploy-server.sh` under a process 
 It installs locked dependencies, initializes the database, builds, and then runs the
 server in the foreground. Configure a reverse proxy for HTTPS.
 
+For local development initialization, run `./init.sh` on macOS/Linux or `init.bat` on
+Windows. These scripts create or preserve `.env`, install locked dependencies, and
+initialize SQLite. Add `--non-interactive` for automation. They do not deploy or start
+the production service.
+
 ## Configuration
 
 Set these values in `.env`:
@@ -42,6 +47,7 @@ Set these values in `.env`:
 - `DATABASE_PATH`: database location; the Compose file sets the container path
 - `ADMIN_USERNAME`: host-console login name
 - `ADMIN_PASSWORD`: strong password of at least 16 characters
+- `AGENT_TOKEN`: independent random Agent Token of at least 32 characters for the trusted AI Agent
 - `SESSION_SECRET`: random signing secret of at least 32 characters
 - `APP_TIME_ZONE`: IANA time-zone name used by the admin date view
 - `HOST_PORT`: port published on the Docker host
@@ -50,6 +56,25 @@ Startup rejects missing, weak, or known placeholder credentials. Initialization
 generates a random shared group key for a fresh database and prints it once; save it
 securely. The active key is stored in SQLite and can be rotated from the host console.
 Rotation invalidates existing group-access sessions but not host sessions.
+
+Generate the Agent token with `openssl rand -hex 32`. The deployment helpers generate
+and store a missing value in `.env` without printing it. For manual rotation, replace
+only `AGENT_TOKEN`, restart the application, verify the new token with a pending
+list request, and remove the old value from the Agent's secret store. The old token is
+invalid after restart. Never place the token in URLs, logs, source files, chat, or
+tracked configuration. See [ADMIN_API.md](ADMIN_API.md) for the complete API contract.
+
+The Agent API shares the existing application listener; this release does not add a
+port or broaden the Compose binding. Keep `/api/admin/v1/` inside the deployment's
+existing HTTPS and trusted-network boundary. If the main site is otherwise public,
+restrict that path to the Agent's trusted network at the reverse proxy or firewall;
+this is a deployment requirement. The application adds defense-in-depth limits of 30
+unauthenticated and 300 authenticated Agent API requests per client per minute. These
+in-process counters reset on restart and are not a substitute for the network rule.
+
+Agent write idempotency records retain only booking ID and minimal operation result for
+30 days. Startup and subsequent writes opportunistically remove older entries. Replay
+returns the original operation result with the booking's current representation.
 
 `npm run db:init` is idempotent: it creates the SQLite file and parent directory,
 applies the current schema and migrations, and seeds defaults only when no permanent
@@ -81,6 +106,9 @@ curl -fsS "http://127.0.0.1:${HOST_PORT:-3000}/" >/dev/null
 The Compose status should become `healthy`. An unauthenticated request to `/admin`
 should redirect to `/admin/login`. Also verify that a group key unlocks the calendar,
 that a disposable request can be approved, and that its private management link works.
+With a disposable database and the token held in a local environment variable, also
+verify `GET /api/admin/v1/bookings?status=pending` returns JSON. Do not exercise Agent
+write endpoints against production data as a smoke test.
 
 ## Consistent backup
 
@@ -142,7 +170,8 @@ If a credential or private management link is exposed:
 1. Remove public access to the affected material.
 2. Rotate the exposed admin password, group or invitation key, and session secret as
    applicable.
-3. Restart the service after changing environment secrets; changing `SESSION_SECRET`
+3. Restart the service after changing environment secrets; rotate `AGENT_TOKEN`
+   if it may have been exposed. Changing `SESSION_SECRET`
    invalidates all signed sessions.
 4. Review logs and database records for unexpected access or changes.
 5. If the value entered Git history, rewrite the history before publication and treat

@@ -9,6 +9,12 @@ import { rateLimit, requiredSecret, validIsoDate } from "@/lib/security";
 import { reviewRequestChangeInTransaction } from "../../scripts/request-change-transaction.mjs";
 import { cancelTrackedRequestInTransaction } from "../../scripts/tracking-transactions.mjs";
 import { permanentlyDeleteTrashedRequestInTransaction } from "../../scripts/trash-transactions.mjs";
+import {
+  AdminBookingError,
+  approveAdminBooking,
+  editAdminBooking,
+  rejectAdminBooking,
+} from "../../scripts/admin-booking-service.mjs";
 
 function text(form: FormData, name: string, max = 200) { const value=String(form.get(name) ?? "").trim(); return value.length<=max ? value : ""; }
 function same(a:string,b:string) { const x=Buffer.from(a), y=Buffer.from(b); return x.length===y.length && timingSafeEqual(x,y); }
@@ -89,98 +95,21 @@ function suggestAllocation(requestId:number) {
   return remaining===0;
 }
 
-type ManualAllocation = { resourceId: number; seats: number };
-
-function assignManualAllocation(
-  requestId: number,
-  allocations: ManualAllocation[],
-): "ok" | "allocation" | "capacity" {
-  const request = db.prepare("SELECT * FROM requests WHERE id=?").get(requestId) as {
-    stay_id: number;
-    starts_on: string;
-    ends_on: string;
-    party_size: number;
-    accepts_sofa: number;
-    accepts_air_mattress: number;
-    exclusive: number;
-  };
-  if (allocations.reduce((sum, allocation) => sum + allocation.seats, 0) !== request.party_size) {
-    return "allocation";
-  }
-  const overlaps = db.prepare(`SELECT exclusive FROM requests
-    WHERE stay_id=? AND id<>? AND status='approved' AND starts_on < ? AND ends_on > ?`).all(
-      request.stay_id,
-      requestId,
-      request.ends_on,
-      request.starts_on,
-    ) as Array<{ exclusive: number }>;
-  if ((request.exclusive && overlaps.length > 0) || overlaps.some((row) => row.exclusive)) {
-    return "capacity";
-  }
-  for (const allocation of allocations) {
-    const resource = db.prepare(`SELECT id,stay_id,capacity,admin_only,requires_sofa_consent
-      FROM resources WHERE id=?`).get(allocation.resourceId) as {
-        id: number;
-        stay_id: number;
-        capacity: number;
-        admin_only: number;
-        requires_sofa_consent: number;
-      } | undefined;
-    if (
-      !resource ||
-      resource.stay_id !== request.stay_id ||
-      (resource.requires_sofa_consent && !request.accepts_sofa) ||
-      (resource.admin_only && !request.accepts_air_mattress)
-    ) {
-      return "allocation";
-    }
-    const existing = db.prepare(`SELECT q.starts_on,q.ends_on,a.seats
-      FROM allocations a JOIN requests q ON q.id=a.request_id
-      WHERE a.resource_id=? AND q.status='approved' AND q.id<>?
-        AND q.starts_on < ? AND q.ends_on > ?`).all(
-          resource.id,
-          requestId,
-          request.ends_on,
-          request.starts_on,
-        ) as Array<{ starts_on: string; ends_on: string; seats: number }>;
-    let peak = 0;
-    for (let night = 0; night < nightsBetween(request.starts_on, request.ends_on); night++) {
-      const day = addDay(request.starts_on, night);
-      peak = Math.max(
-        peak,
-        existing
-          .filter((row) => row.starts_on <= day && row.ends_on > day)
-          .reduce((sum, row) => sum + row.seats, 0),
-      );
-    }
-    if (allocation.seats > resource.capacity - peak) return "capacity";
-  }
-  const insert = db.prepare(
-    "INSERT INTO allocations (request_id,resource_id,seats) VALUES (?,?,?)",
-  );
-  for (const allocation of allocations) {
-    insert.run(requestId, allocation.resourceId, allocation.seats);
-  }
-  return "ok";
-}
-
 export async function updateRequest(form: FormData) {
   await requireAdmin(); const id=Number(text(form,"id")), status=text(form,"status");
-  if (!["approved","rejected","cancelled","pending"].includes(status)) return;
-  const tx=db.transaction(()=>{
-    const request=db.prepare(`SELECT q.stay_id,q.starts_on,q.ends_on,
-      s.starts_on stay_starts_on,s.ends_on stay_ends_on
-      FROM requests q JOIN stays s ON s.id=q.stay_id WHERE q.id=?`).get(id) as {stay_id:number;starts_on:string;ends_on:string;stay_starts_on:string|null;stay_ends_on:string|null}|undefined;
-    if(!request)throw new Error("form");
-    if(status==="approved"&&((request.stay_starts_on&&request.starts_on<request.stay_starts_on)||(request.stay_ends_on&&request.ends_on>request.stay_ends_on)))throw new Error("request_bounds");
-    if(status==="approved"&&db.prepare("SELECT 1 FROM blackouts WHERE stay_id=? AND starts_on < ? AND ends_on > ? LIMIT 1").get(request.stay_id,request.ends_on,request.starts_on))throw new Error("blocked");
-    db.prepare("DELETE FROM allocations WHERE request_id=?").run(id);
-    if (status==="approved" && !suggestAllocation(id)) throw new Error("capacity");
-    db.prepare("UPDATE requests SET status=? WHERE id=?").run(status,id);
-    if(status!=="approved")db.prepare("UPDATE request_changes SET status='rejected',reviewed_at=CURRENT_TIMESTAMP WHERE request_id=? AND status='pending'").run(id);
-    addAuditLog(`request.${status}`,"request",id);
-  });
-  try { tx.immediate(); } catch(error) { if(error instanceof Error&&["blocked","form","request_bounds"].includes(error.message))redirect(`/admin?error=${error.message}`);if(error instanceof Error&&error.message==="capacity")redirect("/admin?error=capacity");throw error; }
+  if (!["approved","rejected"].includes(status)) return;
+  try {
+    if (status === "approved") approveAdminBooking(db, id, { actor: "web-admin" });
+    else rejectAdminBooking(db, id, {}, { actor: "web-admin" });
+  } catch (error) {
+    if (error instanceof AdminBookingError) {
+      if (error.code === "BLACKOUT_CONFLICT") redirect("/admin?error=blocked");
+      if (error.code === "OUTSIDE_STAY_DATES") redirect("/admin?error=request_bounds");
+      if (["BOOKING_CONFLICT", "CAPACITY_CONFLICT"].includes(error.code)) redirect("/admin?error=capacity");
+      if (["BOOKING_NOT_FOUND", "INVALID_STATE_TRANSITION"].includes(error.code)) redirect("/admin?error=form");
+    }
+    throw error;
+  }
   revalidatePath("/"); revalidatePath("/admin"); redirect("/admin");
 }
 
@@ -231,66 +160,28 @@ export async function editRequest(form: FormData) {
     redirect("/admin?error=allocation");
   }
   const manualAllocations = submittedAllocations.filter((allocation) => allocation.seats > 0);
-  const tx = db.transaction(() => {
-    const current = db.prepare(`SELECT q.stay_id,s.starts_on stay_starts_on,s.ends_on stay_ends_on
-      FROM requests q JOIN stays s ON s.id=q.stay_id WHERE q.id=?`).get(id) as {
-        stay_id: number;
-        stay_starts_on: string | null;
-        stay_ends_on: string | null;
-      } | undefined;
-    if (!current) throw new Error("form");
-    if (
-      (current.stay_starts_on && start < current.stay_starts_on) ||
-      (current.stay_ends_on && end > current.stay_ends_on)
-    ) {
-      throw new Error("dates");
-    }
-    if (
-      status === "approved" &&
-      db.prepare(`SELECT id FROM blackouts
-        WHERE stay_id=? AND starts_on < ? AND ends_on > ? LIMIT 1`).get(
-          current.stay_id,
-          end,
-          start,
-        )
-    ) {
-      throw new Error("blocked");
-    }
-    const isHome = !current.stay_starts_on && !current.stay_ends_on;
-    db.prepare("DELETE FROM allocations WHERE request_id=?").run(id);
-    db.prepare(`UPDATE requests SET guest_name=?,starts_on=?,ends_on=?,party_size=?,
-      accepts_sofa=?,accepts_air_mattress=?,exclusive=?,note=?,host_note=?,status=? WHERE id=?`).run(
-        guest,
-        start,
-        end,
-        size,
-        isHome && form.get("accepts_sofa") ? 1 : 0,
-        isHome && form.get("accepts_air_mattress") ? 1 : 0,
-        form.get("exclusive") ? 1 : 0,
-        text(form, "note", 1000),
-        text(form, "host_note", 1000),
-        status,
-        id,
-      );
-    db.prepare("UPDATE request_changes SET status='rejected',reviewed_at=CURRENT_TIMESTAMP WHERE request_id=? AND status='pending'").run(id);
-    if (status === "approved") {
-      if (allocationMode === "auto") {
-        if (!suggestAllocation(id)) throw new Error("capacity");
-      } else {
-        const result = assignManualAllocation(id, manualAllocations);
-        if (result !== "ok") throw new Error(result);
-      }
-    }
-    addAuditLog("request.edited","request",id);
-  });
   try {
-    tx.immediate();
+    editAdminBooking(db, id, {
+      guestName: guest,
+      startsOn: start,
+      endsOn: end,
+      partySize: size,
+      acceptsSofa: Boolean(form.get("accepts_sofa")),
+      acceptsAirMattress: Boolean(form.get("accepts_air_mattress")),
+      exclusive: Boolean(form.get("exclusive")),
+      note: text(form, "note", 1000),
+      hostNote: text(form, "host_note", 1000),
+      status,
+      allocationMode,
+      allocations: manualAllocations,
+    }, { actor: "web-admin" });
   } catch (error) {
-    if (error instanceof Error && ["allocation", "blocked", "dates", "form"].includes(error.message)) {
-      redirect(`/admin?error=${error.message}`);
-    }
-    if (error instanceof Error && error.message === "capacity") {
-      redirect("/admin?error=capacity");
+    if (error instanceof AdminBookingError) {
+      if (error.code === "BLACKOUT_CONFLICT") redirect("/admin?error=blocked");
+      if (error.code === "OUTSIDE_STAY_DATES") redirect("/admin?error=dates");
+      if (error.code === "ALLOCATION_INVALID") redirect("/admin?error=allocation");
+      if (["BOOKING_CONFLICT", "CAPACITY_CONFLICT"].includes(error.code)) redirect("/admin?error=capacity");
+      if (["BOOKING_NOT_FOUND", "VALIDATION_ERROR"].includes(error.code)) redirect("/admin?error=form");
     }
     throw error;
   }

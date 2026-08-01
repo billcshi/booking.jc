@@ -48,6 +48,9 @@ private network details, or exact home location.
 - Host blackout periods and optional automatic home blackouts during trips
 - Interactive first-run home and sleeping-resource configuration
 - Admin editing for the host name, home location, capacities, visibility, and allocation order
+- Private, versioned Agent API for pending review, approval, rejection, and atomic adjustment-and-approval
+- 30-day, privacy-minimized idempotency and audit records identifying Agent actions
+- Defense-in-depth Agent API rate limits, with mandatory trusted-network restriction for public deployments
 - SQLite persistence with Docker Compose deployment support
 
 Pending guest names, internal notes, credentials, exact addresses, and management
@@ -66,10 +69,33 @@ tokens are not shown on the public calendar.
 Requirements: Node.js 22 or a compatible current Node.js release, npm, and build
 tools supported by `better-sqlite3`.
 
+On macOS or Linux:
+
+```bash
+./init.sh
+npm run dev
+```
+
+On Windows Command Prompt:
+
+```bat
+init.bat
+npm run dev
+```
+
+The initializer creates the ignored `.env` with random Admin, session, and Agent
+credentials, installs locked dependencies with `npm ci`, creates or migrates SQLite,
+and interactively configures a new permanent home. Secret values are stored in `.env`;
+the Agent Token is never printed. Existing `.env`, keys, settings, and bookings are
+preserved. Use `./init.sh --non-interactive` or `init.bat --non-interactive` in
+automation.
+
+The equivalent manual flow is:
+
 ```bash
 cp .env.example .env
 # Replace every placeholder in .env.
-npm install
+npm ci
 npm run db:init -- --interactive
 npm run dev
 ```
@@ -97,6 +123,7 @@ at `http://localhost:3000/admin`.
 | `DATABASE_PATH` | SQLite database path | Keep it in an ignored, persistent directory |
 | `ADMIN_USERNAME` | Host-console login name | At least 2 characters; do not use `admin` |
 | `ADMIN_PASSWORD` | Host-console password | At least 16 characters |
+| `AGENT_TOKEN` | Independent Agent Token for the trusted AI Agent Admin API | At least 32 random characters; server-only |
 | `SESSION_SECRET` | HMAC key for signed sessions | At least 32 random characters |
 | `APP_TIME_ZONE` | Time zone used for the admin calendar's current date | IANA zone such as `UTC` |
 | `HOST_PORT` | Host port published by Docker Compose | Defaults to `3000` |
@@ -111,6 +138,13 @@ Generate a session secret with a local cryptographic tool, for example:
 openssl rand -hex 32
 ```
 
+Generate `AGENT_TOKEN` the same way, but keep it independent from every login,
+session, group, invitation, and booking-management credential. See
+[docs/ADMIN_API.md](docs/ADMIN_API.md) for the private Agent API contract, token
+rotation, curl examples, response fields, and error codes. Give
+[docs/AGENT_GUIDE.md](docs/AGENT_GUIDE.md) to the AI Agent as its operational API
+instructions.
+
 Never commit `.env`, databases, backups, guest exports, or private deployment notes.
 The repository intentionally ignores `data/` and `backups/` for this reason.
 Keep real or private home names, exact locations, and private room details out of
@@ -121,6 +155,8 @@ ignored SQLite database.
 
 ```bash
 npm run dev      # start the development server
+./init.sh         # initialize .env, dependencies, and SQLite on macOS/Linux
+init.bat          # initialize .env, dependencies, and SQLite on Windows
 npm run db:init  # create or migrate the configured SQLite database
 npm run db:init -- --interactive  # configure a fresh home interactively
 npm run deploy:docker  # build, initialize, and start with Docker Compose
@@ -132,7 +168,8 @@ npm start        # validate production variables and start Next.js
 ```
 
 The automated suite covers schema upgrades and critical booking-change transaction
-behavior. Run tests, lint, and build checks before every change, then manually verify
+behavior, including Agent API authentication, idempotency, validation, conflicts, and
+secret non-disclosure. Run tests, lint, and build checks before every change, then manually verify
 affected public and host workflows using disposable data.
 
 ## Docker deployment
@@ -223,10 +260,16 @@ src/app/                 App Router pages, Server Actions, components, and style
 src/lib/db.ts            Application queries and the shared database connection
 src/lib/auth.ts          Signed admin and group-access cookies
 src/lib/security.ts      Environment validation, rate limiting, and date checks
+scripts/admin-booking-service.mjs  Shared booking approval/edit domain service
+scripts/admin-api-handler.mjs      Agent authentication and JSON HTTP adapter
+scripts/init-environment.mjs       Cross-platform private environment initializer
 scripts/database.mjs     Shared SQLite schema, migrations, and seed logic
 scripts/init-db.mjs      Explicit, idempotent database initializer
 scripts/start.mjs        Production environment guard and server launcher
+init.sh / init.bat       Local initialization entry points
 docs/OPERATIONS.md       Deployment and data-recovery runbook
+docs/ADMIN_API.md        Private AI Agent API contract and examples
+docs/AGENT_GUIDE.md      Operational instructions supplied to the AI Agent
 ```
 
 Schema upgrades are additive and run through both `db:init` and normal application
@@ -244,6 +287,8 @@ allocated seats.
 - Request-management URLs contain bearer tokens and should be handled as secrets.
 - Admin and group sessions are signed, HTTP-only, same-site cookies.
 - Login and group-key attempts are rate-limited in process memory.
+- Agent API requests have separate authenticated and unauthenticated in-process limits;
+  public deployments must also restrict `/api/admin/v1/` at the proxy or firewall.
 - The request-detail route disables caching, referrers, and indexing.
 - Audit entries exclude guest names, messages, keys, passwords, and management tokens.
 - Calendar feeds are private bearer URLs that the host can rotate to revoke.

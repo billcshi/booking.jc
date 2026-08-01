@@ -150,9 +150,11 @@ export function initializeDatabase({
         status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','approved','rejected','cancelled')),
         manage_token TEXT NOT NULL UNIQUE,
         submission_key TEXT UNIQUE,
+        rejection_reason TEXT NOT NULL DEFAULT '',
         deleted_at TEXT,
         tracking_last_accessed_at TEXT,
-        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
       );
       CREATE TABLE IF NOT EXISTS allocations (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -205,8 +207,20 @@ export function initializeDatabase({
         entity_type TEXT NOT NULL,
         entity_id INTEGER,
         summary TEXT NOT NULL DEFAULT '',
+        actor TEXT NOT NULL DEFAULT 'web-admin',
+        before_summary TEXT NOT NULL DEFAULT '',
+        after_summary TEXT NOT NULL DEFAULT '',
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
       );
+      CREATE TABLE IF NOT EXISTS admin_api_idempotency (
+        idempotency_key TEXT PRIMARY KEY,
+        operation TEXT NOT NULL,
+        request_hash TEXT NOT NULL,
+        response_json TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS admin_api_idempotency_created_at
+        ON admin_api_idempotency(created_at);
     `);
 
     const requestColumns = db.prepare("PRAGMA table_info(requests)").all();
@@ -232,6 +246,66 @@ export function initializeDatabase({
     if (!requestColumns.some((column) => column.name === "tracking_last_accessed_at")) {
       db.exec("ALTER TABLE requests ADD COLUMN tracking_last_accessed_at TEXT");
     }
+    if (!requestColumns.some((column) => column.name === "rejection_reason")) {
+      db.exec("ALTER TABLE requests ADD COLUMN rejection_reason TEXT NOT NULL DEFAULT ''");
+    }
+    if (!requestColumns.some((column) => column.name === "updated_at")) {
+      db.exec("ALTER TABLE requests ADD COLUMN updated_at TEXT");
+      db.exec("UPDATE requests SET updated_at=COALESCE(created_at,CURRENT_TIMESTAMP) WHERE updated_at IS NULL");
+    }
+    db.exec(`CREATE TRIGGER IF NOT EXISTS requests_set_updated_at
+      AFTER UPDATE ON requests
+      FOR EACH ROW WHEN NEW.updated_at = OLD.updated_at
+      BEGIN
+        UPDATE requests SET updated_at=CURRENT_TIMESTAMP WHERE id=NEW.id;
+      END`);
+
+    const auditColumns = db.prepare("PRAGMA table_info(audit_logs)").all();
+    if (!auditColumns.some((column) => column.name === "actor")) {
+      db.exec("ALTER TABLE audit_logs ADD COLUMN actor TEXT NOT NULL DEFAULT 'web-admin'");
+    }
+    if (!auditColumns.some((column) => column.name === "before_summary")) {
+      db.exec("ALTER TABLE audit_logs ADD COLUMN before_summary TEXT NOT NULL DEFAULT ''");
+    }
+    if (!auditColumns.some((column) => column.name === "after_summary")) {
+      db.exec("ALTER TABLE audit_logs ADD COLUMN after_summary TEXT NOT NULL DEFAULT ''");
+    }
+
+    db.prepare("DELETE FROM admin_api_idempotency WHERE created_at < datetime('now','-30 days')").run();
+    const idempotencyRows = db.prepare(
+      "SELECT idempotency_key,response_json FROM admin_api_idempotency",
+    ).all();
+    const updateIdempotency = db.prepare(
+      "UPDATE admin_api_idempotency SET response_json=? WHERE idempotency_key=?",
+    );
+    const deleteIdempotency = db.prepare(
+      "DELETE FROM admin_api_idempotency WHERE idempotency_key=?",
+    );
+    db.transaction(() => {
+      for (const row of idempotencyRows) {
+        try {
+          const parsed = JSON.parse(row.response_json);
+          const bookingId = parsed.bookingId ?? parsed.booking?.id;
+          if (!Number.isInteger(bookingId) || !parsed.result || typeof parsed.result !== "object") {
+            deleteIdempotency.run(row.idempotency_key);
+            continue;
+          }
+          const compacted = JSON.stringify({
+            bookingId,
+            result: {
+              action: String(parsed.result.action ?? ""),
+              actor: String(parsed.result.actor ?? "Agent"),
+              summary: String(parsed.result.summary ?? "").slice(0, 240),
+            },
+          });
+          if (row.response_json !== compacted) {
+            updateIdempotency.run(compacted, row.idempotency_key);
+          }
+        } catch {
+          deleteIdempotency.run(row.idempotency_key);
+        }
+      }
+    })();
 
     const requestChangeColumns = db.prepare("PRAGMA table_info(request_changes)").all();
     if (!requestChangeColumns.some((column) => column.name === "guest_name")) {
@@ -263,7 +337,7 @@ export function initializeDatabase({
     db.prepare("INSERT OR IGNORE INTO settings (key,value) VALUES ('group_key_version','1')").run();
     db.prepare("INSERT OR IGNORE INTO settings (key,value) VALUES ('host_display_name','Host')").run();
     db.prepare("INSERT OR IGNORE INTO settings (key,value) VALUES ('calendar_feed_token',?)").run(randomBytes(24).toString("base64url"));
-    db.prepare("INSERT OR IGNORE INTO settings (key,value) VALUES ('schema_version','2')").run();
+    db.prepare("INSERT INTO settings (key,value) VALUES ('schema_version','3') ON CONFLICT(key) DO UPDATE SET value=excluded.value").run();
 
     if (!db.prepare("SELECT id FROM stays WHERE starts_on IS NULL AND ends_on IS NULL LIMIT 1").get()) {
       db.transaction(() => {

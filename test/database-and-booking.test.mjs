@@ -37,8 +37,12 @@ test("legacy requests migrate safely and initialization is idempotent", () => {
   assert.ok(db.prepare("PRAGMA table_info(requests)").all().some((column) => column.name === "submission_key"));
   assert.ok(db.prepare("PRAGMA table_info(requests)").all().some((column) => column.name === "deleted_at"));
   assert.ok(db.prepare("PRAGMA table_info(requests)").all().some((column) => column.name === "tracking_last_accessed_at"));
+  assert.ok(db.prepare("PRAGMA table_info(requests)").all().some((column) => column.name === "updated_at"));
+  assert.ok(db.prepare("PRAGMA table_info(requests)").all().some((column) => column.name === "rejection_reason"));
   assert.ok(db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='request_changes'").get());
   assert.ok(db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='audit_logs'").get());
+  assert.ok(db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='admin_api_idempotency'").get());
+  assert.ok(db.prepare("PRAGMA table_info(audit_logs)").all().some((column) => column.name === "actor"));
   assert.match(db.prepare("SELECT value FROM settings WHERE key='calendar_feed_token'").get().value,/^[A-Za-z0-9_-]{32}$/);
   db.prepare("UPDATE requests SET submission_key=? WHERE id=1").run("00000000-0000-4000-8000-000000000001");
   assert.throws(() => db.prepare(`INSERT INTO requests
@@ -50,12 +54,30 @@ test("legacy requests migrate safely and initialization is idempotent", () => {
     VALUES (1,'Retry','','2030-01-01','2030-01-02',1,'','pending','retry-token',?)
     ON CONFLICT DO NOTHING`).run("00000000-0000-4000-8000-000000000001");
   assert.equal(upsert.changes, 0);
+  db.prepare(`INSERT INTO admin_api_idempotency
+    (idempotency_key,operation,request_hash,response_json) VALUES (?,?,?,?)`).run(
+      "legacy-full-response",
+      "booking.1.approve",
+      "legacy-hash",
+      JSON.stringify({
+        booking: { id: 1, applicant: { guestName: "Duplicated private guest" }, notes: { guest: "Duplicated private note" } },
+        result: { action: "approved", actor: "Agent", summary: "Booking #1 was approved." },
+      }),
+    );
   db.close();
 
   db = initializeDatabase({ databasePath, requestKey: "replacement-must-not-win" });
   assert.equal(db.prepare("SELECT value FROM settings WHERE key='group_key'").get().value, "first-key");
   assert.equal(db.prepare("SELECT COUNT(*) count FROM requests").get().count, 1);
   assert.equal(db.prepare("SELECT COUNT(*) count FROM settings WHERE key='calendar_feed_token'").get().count,1);
+  const compacted = JSON.parse(db.prepare(
+    "SELECT response_json FROM admin_api_idempotency WHERE idempotency_key='legacy-full-response'",
+  ).get().response_json);
+  assert.deepEqual(compacted, {
+    bookingId: 1,
+    result: { action: "approved", actor: "Agent", summary: "Booking #1 was approved." },
+  });
+  assert.equal(JSON.stringify(compacted).includes("Duplicated private"), false);
   db.close();
 });
 

@@ -42,6 +42,9 @@ booking.jc 是一个适合私人群组自行部署的住宿日历。朋友无需
 - 管理员维护不可住时段，旅行期间可同步关闭固定住所
 - 首次初始化时配置固定住所和睡位
 - Admin 后台随时调整 Host 名称、地点、容量、可见性和分配顺序
+- 面向受信任 Agent 的私有版本化 API，可查询待审批、批准、拒绝、调整或原子调整后批准
+- Agent 写操作支持保留 30 天的最小化幂等结果和隐私最小化审计
+- Agent API 提供应用层纵深限速；公网部署必须在代理或防火墙限制该路径
 - SQLite 持久化与 Docker Compose 部署
 
 公共日历不会显示待审批住客姓名、内部备注、凭据、精确地址或申请管理 token。
@@ -57,10 +60,31 @@ booking.jc 是一个适合私人群组自行部署的住宿日历。朋友无需
 
 需要 Node.js 22、npm，以及当前平台上 `better-sqlite3` 所需的构建支持。
 
+macOS 或 Linux：
+
+```bash
+./init.sh
+npm run dev
+```
+
+Windows 命令提示符：
+
+```bat
+init.bat
+npm run dev
+```
+
+初始化脚本会创建被 Git 忽略的 `.env`，随机生成 Admin、Session 和 Agent 凭据，
+通过 `npm ci` 安装锁定依赖，创建或迁移 SQLite，并在全新数据库上交互配置固定住所。
+秘密只写入 `.env`，Agent Token 不会打印。重复执行会保留已有 `.env`、Key、设置和预订。
+自动化环境可使用 `./init.sh --non-interactive` 或 `init.bat --non-interactive`。
+
+等价的手动初始化流程为：
+
 ```bash
 cp .env.example .env
 # 替换 .env 中的所有占位值
-npm install
+npm ci
 npm run db:init -- --interactive
 npm run dev
 ```
@@ -97,6 +121,7 @@ Guest bed | 2 | normal; Sofa | 1 | sofa; Air mattress | 1 | hidden
 | `DATABASE_PATH` | SQLite 数据库路径 | 放在持久化且被 Git 忽略的目录中 |
 | `ADMIN_USERNAME` | 管理员用户名 | 至少 2 位，不能使用 `admin` |
 | `ADMIN_PASSWORD` | 管理员密码 | 至少 16 位 |
+| `AGENT_TOKEN` | 受信任 AI Agent Admin API 的独立 Agent Token | 至少 32 位随机字符；仅服务端使用 |
 | `SESSION_SECRET` | Session HMAC 密钥 | 至少 32 位随机字符 |
 | `APP_TIME_ZONE` | Admin 日历计算“今天”时使用的时区 | IANA 时区，例如 `UTC` |
 | `HOST_PORT` | Docker Compose 对外端口 | 默认 `3000` |
@@ -111,6 +136,12 @@ Guest bed | 2 | normal; Sofa | 1 | sofa; Air mattress | 1 | hidden
 openssl rand -hex 32
 ```
 
+请用同样方法单独生成 `AGENT_TOKEN`，不得与网页登录、Session、群组 Key、邀请
+Key 或申请管理 Token 复用。完整机器接口 contract、Token 轮换、curl 示例、字段和错误码见
+[docs/ADMIN_API.md](docs/ADMIN_API.md)。该接口仅供安全网络边界内的受信任 AI Agent 使用，
+不是人类前端或第三方公开集成接口。把
+[docs/AGENT_GUIDE.md](docs/AGENT_GUIDE.md) 作为 AI Agent 的具体操作说明。
+
 不要提交 `.env`、SQLite 数据库、备份、住客导出或私人部署备注。仓库已整体忽略 `data/` 和 `backups/`。
 不要把真实或私人的住所名称、精确地点、私人房间信息写进 `.env`；请通过交互初始化输入，使其只保存在被忽略的 SQLite 数据库中。
 
@@ -118,6 +149,8 @@ openssl rand -hex 32
 
 ```bash
 npm run dev                         # 开发服务器
+./init.sh                           # macOS/Linux 初始化 .env、依赖和 SQLite
+init.bat                            # Windows 初始化 .env、依赖和 SQLite
 npm run db:init                     # 无交互地创建或升级数据库
 npm run db:init -- --interactive   # 交互配置全新数据库
 npm run deploy:docker               # Docker 构建、初始化并启动
@@ -128,7 +161,8 @@ npm run build                       # 生产构建
 npm start                           # 校验生产配置并启动
 ```
 
-自动化测试覆盖数据库升级与关键住宿修改事务。提交代码前应运行 test、lint 和 build，并使用一次性数据手动验证受影响的公共及管理员流程。
+自动化测试覆盖数据库升级、关键住宿修改事务，以及 Agent API 的认证、幂等、输入校验、
+冲突处理和 Token 防泄漏。提交代码前应运行 test、lint 和 build，并使用一次性数据手动验证受影响的公共及管理员流程。
 
 ## Docker 部署
 
@@ -217,6 +251,8 @@ Admin 删除住宿记录时，记录会先进入回收站并立即释放床位�
 - 申请管理链接包含 bearer token，应按密码处理。
 - 管理员和群组 Session 使用签名、HTTP-only、same-site Cookie。
 - 登录和 Key 尝试有进程内速率限制。
+- Agent API 分别限制未认证和已认证请求；公网部署还必须在代理或防火墙限制
+  `/api/admin/v1/`。
 - 私密申请页面禁止缓存、referrer 和搜索引擎索引。
 - 审计日志不记录住客姓名、留言、Key、密码或管理 token。
 - 私密日历订阅使用 bearer URL，Host 可随时轮换地址使旧链接失效。

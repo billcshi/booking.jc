@@ -8,6 +8,7 @@ import {
 if (process.env.NODE_ENV === "production" && process.env.npm_lifecycle_event !== "build") {
   requiredSecret("ADMIN_USERNAME");
   requiredSecret("ADMIN_PASSWORD");
+  requiredSecret("AGENT_TOKEN");
   requiredSecret("SESSION_SECRET");
 }
 

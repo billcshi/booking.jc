@@ -1,6 +1,7 @@
 export const secretRules = {
   ADMIN_USERNAME: 2,
   ADMIN_PASSWORD: 16,
+  AGENT_TOKEN: 32,
   SESSION_SECRET: 32,
 };
 

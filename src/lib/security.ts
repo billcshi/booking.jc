@@ -4,7 +4,7 @@ import { requiredSecret as requiredConfiguredSecret } from "../../scripts/config
 
 const buckets = new Map<string, { count: number; resetAt: number }>();
 
-export function requiredSecret(name: "ADMIN_USERNAME" | "ADMIN_PASSWORD" | "SESSION_SECRET") {
+export function requiredSecret(name: "ADMIN_USERNAME" | "ADMIN_PASSWORD" | "AGENT_TOKEN" | "SESSION_SECRET") {
   return requiredConfiguredSecret(name, process.env[name]);
 }
 
