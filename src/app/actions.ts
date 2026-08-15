@@ -9,6 +9,7 @@ import { rateLimit, requiredSecret, validIsoDate } from "@/lib/security";
 import { reviewRequestChangeInTransaction } from "../../scripts/request-change-transaction.mjs";
 import { cancelTrackedRequestInTransaction } from "../../scripts/tracking-transactions.mjs";
 import { permanentlyDeleteTrashedRequestInTransaction } from "../../scripts/trash-transactions.mjs";
+import { approvedExclusiveConflict } from "../../scripts/booking-conflicts.mjs";
 import {
   AdminBookingError,
   approveAdminBooking,
@@ -41,16 +42,18 @@ export async function submitRequest(form: FormData) {
   const submissionKey=text(form,"submission_key",64);
   if (!guest || !validIsoDate(start) || !validIsoDate(end) || start>=end || nightsBetween(start,end)>90 || !Number.isInteger(size) || size<1 || size>8 || !validSubmissionKey(submissionKey)) redirect("/?error=form");
   let token=randomBytes(24).toString("base64url");
+  const exclusive=Boolean(form.get("exclusive"));
   const tx=db.transaction(()=>{
     const stay=db.prepare("SELECT starts_on,ends_on FROM stays WHERE id=? AND is_public=1").get(stayId) as {starts_on:string|null;ends_on:string|null}|undefined;
     if (!stay || (stay.starts_on && start<stay.starts_on) || (stay.ends_on && end>stay.ends_on))throw new Error("dates");
     if(db.prepare("SELECT id FROM blackouts WHERE stay_id=? AND starts_on < ? AND ends_on > ? LIMIT 1").get(stayId,end,start))throw new Error("blocked");
+    if(approvedExclusiveConflict(db,{stayId,startsOn:start,endsOn:end,exclusive}))throw new Error("conflict");
     const isHome=!stay.starts_on&&!stay.ends_on;
     const result=db.prepare(`INSERT INTO requests (stay_id,guest_name,contact,starts_on,ends_on,party_size,accepts_sofa,accepts_air_mattress,note,manage_token,exclusive,invite_key_id,submission_key)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT DO NOTHING`).run(stayId,guest,"",start,end,size,isHome&&form.get("accepts_sofa")?1:0,isHome&&form.get("accepts_air_mattress")?1:0,text(form,"note",1000),token,form.get("exclusive")?1:0,access.inviteKeyId,submissionKey);
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT DO NOTHING`).run(stayId,guest,"",start,end,size,isHome&&form.get("accepts_sofa")?1:0,isHome&&form.get("accepts_air_mattress")?1:0,text(form,"note",1000),token,exclusive?1:0,access.inviteKeyId,submissionKey);
     if(!result.changes)token=(db.prepare("SELECT manage_token FROM requests WHERE submission_key=?").get(submissionKey) as {manage_token:string}).manage_token;
   });
-  try{tx.immediate();}catch(error){if(error instanceof Error&&["dates","blocked"].includes(error.message))redirect(`/?error=${error.message}`);throw error;}
+  try{tx.immediate();}catch(error){if(error instanceof Error&&["dates","blocked","conflict"].includes(error.message))redirect(`/?error=${error.message}`);throw error;}
   revalidatePath("/");
   redirect(`/request/${token}?created=1`);
 }
@@ -77,8 +80,7 @@ export async function switchKey(){await clearGroupSession();redirect("/?change_k
 
 function suggestAllocation(requestId:number) {
   const req=db.prepare("SELECT * FROM requests WHERE id=?").get(requestId) as {stay_id:number;starts_on:string;ends_on:string;party_size:number;accepts_sofa:number;accepts_air_mattress:number;exclusive:number};
-  const overlaps=db.prepare("SELECT exclusive FROM requests WHERE deleted_at IS NULL AND stay_id=? AND id<>? AND status='approved' AND starts_on < ? AND ends_on > ?").all(req.stay_id,requestId,req.ends_on,req.starts_on) as Array<{exclusive:number}>;
-  if((req.exclusive&&overlaps.length>0)||overlaps.some(x=>x.exclusive))return false;
+  if(approvedExclusiveConflict(db,{stayId:req.stay_id,startsOn:req.starts_on,endsOn:req.ends_on,exclusive:Boolean(req.exclusive),excludeRequestId:requestId}))return false;
   const resources=db.prepare(`SELECT * FROM resources WHERE stay_id=? ORDER BY priority, capacity DESC`).all(req.stay_id) as Array<{id:number;name:string;capacity:number;admin_only:number;requires_sofa_consent:number}>;
   let remaining=req.party_size;
   for (const resource of resources) {
@@ -348,6 +350,7 @@ export async function editOwnRequest(token:string,form:FormData){
     if((request.stay_starts_on&&start<request.stay_starts_on)||(request.stay_ends_on&&end>request.stay_ends_on))throw new Error("dates");
     if(db.prepare("SELECT 1 FROM blackouts WHERE stay_id=? AND starts_on < ? AND ends_on > ? LIMIT 1").get(request.stay_id,end,start))throw new Error("blocked");
     const isHome=!request.stay_starts_on&&!request.stay_ends_on,acceptsSofa=isHome&&form.get("accepts_sofa")?1:0,acceptsAirMattress=isHome&&form.get("accepts_air_mattress")?1:0,exclusive=form.get("exclusive")?1:0;
+    if(approvedExclusiveConflict(db,{stayId:request.stay_id,startsOn:start,endsOn:end,exclusive:Boolean(exclusive),excludeRequestId:request.id}))throw new Error("conflict");
     if(request.status==="pending"||request.status==="rejected"){
       db.prepare(`UPDATE requests SET guest_name=?,starts_on=?,ends_on=?,party_size=?,accepts_sofa=?,
         accepts_air_mattress=?,exclusive=?,note=?,status='pending' WHERE id=?`).run(guest,start,end,size,acceptsSofa,acceptsAirMattress,exclusive,rawNote,request.id);
@@ -366,7 +369,7 @@ export async function editOwnRequest(token:string,form:FormData){
     else db.prepare(`INSERT INTO request_changes (request_id,guest_name,starts_on,ends_on,party_size,accepts_sofa,accepts_air_mattress,exclusive,note)
       VALUES (?,?,?,?,?,?,?,?,?)`).run(request.id,guest,start,end,size,acceptsSofa,acceptsAirMattress,exclusive,rawNote);
   });
-  try{tx.immediate();}catch(error){if(error instanceof Error&&["blocked","dates","status"].includes(error.message))redirect(`/request/${token}?error=${error.message}`);throw error;}
+  try{tx.immediate();}catch(error){if(error instanceof Error&&["blocked","dates","status","conflict"].includes(error.message))redirect(`/request/${token}?error=${error.message}`);throw error;}
   revalidatePath("/");revalidatePath("/admin");revalidatePath(`/request/${token}`);
   redirect(`/request/${token}?${result}=1`);
 }

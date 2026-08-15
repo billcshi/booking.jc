@@ -91,6 +91,7 @@ export default function BookingCalendar({
     [focus, setFocus] = useState(initialFocus),
     [start, setStart] = useState(""),
     [end, setEnd] = useState(""),
+    [exclusive, setExclusive] = useState(false),
     [acceptsAirMattress,setAcceptsAirMattress]=useState(false),
     [showHistory, setShowHistory] = useState(
       Boolean(stay?.starts_on && stay.starts_on < today),
@@ -107,6 +108,7 @@ export default function BookingCalendar({
     setStayId(id);
     setStart("");
     setEnd("");
+    setExclusive(false);
     const d = next.starts_on ?? today;
     setMonth(monthOf(d));
     setFocus(d);
@@ -144,6 +146,13 @@ export default function BookingCalendar({
     }
     return true;
   }
+  function hasApprovedGuests(from: string, to: string) {
+    for (let day = from; day < to; day = add(day, 1)) {
+      if ((stay.nights[day]?.people ?? 0) > 0) return true;
+    }
+    return false;
+  }
+  const exclusiveUnavailable = Boolean(start && end && hasApprovedGuests(start, end));
   function pickDate(day: string) {
     setFocus(day);
     if (day < today || (!inTripNight(day) && !isTripDeparture(day))) return;
@@ -151,10 +160,14 @@ export default function BookingCalendar({
       if (canStay(day)) {
         setStart(day);
         setEnd("");
+        setExclusive(false);
       }
       return;
     }
-    if (canEndAt(day)) setEnd(day);
+    if (canEndAt(day)) {
+      setEnd(day);
+      setExclusive(false);
+    }
   }
   function moveCalendarFocus(day:string,days:number){const next=add(day,days);setFocus(next);if(monthOf(next)!==month)setMonth(monthOf(next));requestAnimationFrame(()=>document.querySelector<HTMLButtonElement>(`[data-calendar-day="${next}"]`)?.focus());}
   return (
@@ -264,6 +277,7 @@ export default function BookingCalendar({
                 onClick={() => {
                   setStart("");
                   setEnd("");
+                  setExclusive(false);
                 }}
               >
                 {t("清除")}
@@ -472,7 +486,10 @@ export default function BookingCalendar({
           {error && (
             <p className="alert">
               {error === "rate"
-                ? t("尝试次数太多，请稍后再试。") : t("请检查日期和填写内容。")}
+                ? t("尝试次数太多，请稍后再试。")
+                : error === "conflict"
+                  ? t("所选日期与已确认住宿的独占规则冲突。")
+                  : t("请检查日期和填写内容。")}
             </p>
           )}
           <div className="quick-fields">
@@ -499,10 +516,10 @@ export default function BookingCalendar({
               <input name="accepts_air_mattress" type="checkbox" checked={acceptsAirMattress} onChange={event=>setAcceptsAirMattress(event.target.checked)} /> {t("接受隐藏备用位")}
             </label>}
             <label className="check exclusive-request">
-              <input name="exclusive" type="checkbox" />
+              <input name="exclusive" type="checkbox" checked={exclusive} disabled={exclusiveUnavailable} onChange={(event)=>setExclusive(event.target.checked)} />
               <span>
                 {t("希望独占住宿")}
-                <small>{locale==="en"?`Do not share with other guests during this stay; final approval is up to ${hostDisplayName}`:`整段时间不与其他住客同住，最终由 ${hostDisplayName} 确认`}</small>
+                <small>{exclusiveUnavailable?t("所选日期已有确认住客，不能申请独占。"):locale==="en"?`Do not share with other guests during this stay; final approval is up to ${hostDisplayName}`:`整段时间不与其他住客同住，最终由 ${hostDisplayName} 确认`}</small>
               </span>
             </label>
             <label className="booking-note">

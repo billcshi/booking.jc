@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { approvedExclusiveConflict } from "./booking-conflicts.mjs";
 
 const BOOKING_STATUSES = new Set(["pending", "approved", "rejected", "cancelled"]);
 const ADJUSTABLE_FIELDS = new Set([
@@ -92,15 +93,14 @@ function allocationPlan(db, booking) {
     );
   if (blackout) return { code: "BLACKOUT_CONFLICT", details: { blackoutId: blackout.id }, plan: [] };
 
-  const overlaps = db.prepare(`SELECT id,exclusive FROM requests
-    WHERE deleted_at IS NULL AND stay_id=? AND id<>? AND status='approved'
-      AND starts_on < ? AND ends_on > ? ORDER BY id`).all(
-        booking.stay_id,
-        booking.id,
-        booking.ends_on,
-        booking.starts_on,
-      );
-  if ((booking.exclusive && overlaps.length > 0) || overlaps.some((row) => row.exclusive)) {
+  const overlaps = approvedExclusiveConflict(db, {
+    stayId: booking.stay_id,
+    startsOn: booking.starts_on,
+    endsOn: booking.ends_on,
+    exclusive: Boolean(booking.exclusive),
+    excludeRequestId: booking.id,
+  });
+  if (overlaps) {
     return {
       code: "BOOKING_CONFLICT",
       details: { kind: "exclusive", conflictingBookingIds: overlaps.map((row) => row.id) },

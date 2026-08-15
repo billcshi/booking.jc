@@ -21,7 +21,7 @@ const en = {
   "不在此次行程内": "Outside this trip", "只有旅行开始日至退房日前一晚可以住宿。": "Only nights from the trip start through the night before check-out are available.", "这晚不可住": "Unavailable this night",
   "独占住宿 · 不接待其他住客": "Exclusive stay · no other guests", "已确认 · 余": "Approved · available", "这晚还没人住。": "No one is staying this night yet.",
   "输入全群或个人 key code 查看昵称并申请。": "Enter a group or personal key code to view names and request a stay.", "解锁": "Unlock", "另有": "Another", "在日历上依次点击入住日和退房日": "Select check-in and check-out on the calendar",
-  "请检查日期和填写内容。": "Check the dates and form details.", "群里昵称": "Group nickname", "会向群友显示": "visible to the group", "人数": "Party size", "可以睡 sofa": "Can use the sofa", "接受隐藏备用位": "Accept hidden backup space",
+  "请检查日期和填写内容。": "Check the dates and form details.", "所选日期与已确认住宿的独占规则冲突。": "The selected dates conflict with an approved stay's exclusivity rules.", "所选日期已有确认住客，不能申请独占。": "An approved guest is already staying on the selected dates, so an exclusive stay cannot be requested.", "群里昵称": "Group nickname", "会向群友显示": "visible to the group", "人数": "Party size", "可以睡 sofa": "Can use the sofa", "接受隐藏备用位": "Accept hidden backup space",
   "整段时间不与其他住客同住，最终由 Host 确认": "Do not share with other guests during this stay; final approval is up to the host", "提交给 Host 确认": "Submit for Host approval",
   "Host login": "Host login", "尝试次数太多，请 15 分钟后再试。": "Too many attempts. Try again in 15 minutes.", "Credentials 不正确。": "Incorrect credentials.", "Username": "Username", "Password": "Password", "Log in": "Log in",
   "退出": "Log out", "住宿管理": "Stay management", "住客已直接加入并自动安排位置。": "Guest added and assigned automatically.", "旅行住宿已更新。": "Trip stay updated.", "临时旅行住宿已删除。": "Temporary trip stay deleted.",

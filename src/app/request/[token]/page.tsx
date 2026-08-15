@@ -96,7 +96,11 @@ export default async function RequestPage({
         {query.change_requested && <p className="success">{t("申请修改已提交给 Host 审批；原住宿安排暂时保持不变。")}</p>}
         {query.error && (
           <p className="alert">
-            {query.error === "rate" ? t("尝试次数太多，请稍后再试。") : t("无法保存修改，请检查日期和填写内容。")}
+            {query.error === "rate"
+              ? t("尝试次数太多，请稍后再试。")
+              : query.error === "conflict"
+                ? t("所选日期与已确认住宿的独占规则冲突。")
+                : t("无法保存修改，请检查日期和填写内容。")}
           </p>
         )}
         <dl>
