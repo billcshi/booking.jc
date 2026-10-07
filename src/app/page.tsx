@@ -18,13 +18,24 @@ function nights(start: string, end: string) {
   return result;
 }
 
+function localToday(timeZone: string) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
+
 export default async function Home({
   searchParams,
 }: {
   searchParams: Promise<{ error?: string }>;
 }) {
   const { t } = await getI18n();
-  const stays = listStays(),
+  const timeZone = process.env.APP_TIME_ZONE ?? "UTC",
+    today = localToday(timeZone),
+    stays = listStays().filter((stay) => !stay.ends_on || stay.ends_on > today),
     requests = publicSchedule(),
     blackouts = listBlackouts(),
     { error } = await searchParams,
@@ -117,7 +128,7 @@ export default async function Home({
           hostDisplayName={hostDisplayName}
           showSmokingNotice={showSmokingNotice}
           showAlcoholNotice={showAlcoholNotice}
-          timeZone={process.env.APP_TIME_ZONE ?? "UTC"}
+          timeZone={timeZone}
           submissionKey={randomUUID()}
         />
       </section>
