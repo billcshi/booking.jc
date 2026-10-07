@@ -254,6 +254,7 @@ export async function editStay(form:FormData) {
 export async function editHome(form:FormData) {
   await requireAdmin();
   const stayId=Number(text(form,"stay_id",20)),name=text(form,"name",100),location=text(form,"location",120),hostDisplayName=text(form,"host_display_name",40);
+  const showSmokingNotice=form.get("show_smoking_notice")?"1":"0",showAlcoholNotice=form.get("show_alcohol_notice")?"1":"0";
   if(!Number.isInteger(stayId)||!name||!location||!hostDisplayName)redirect("/admin?error=home_form");
   const stay=db.prepare("SELECT id FROM stays WHERE id=? AND starts_on IS NULL AND ends_on IS NULL").get(stayId) as {id:number}|undefined;
   if(!stay)redirect("/admin?error=home_form");
@@ -270,6 +271,8 @@ export async function editHome(form:FormData) {
     for(const resource of existing){if(!submittedIds.includes(resource.id)&&db.prepare("SELECT 1 FROM allocations WHERE resource_id=? LIMIT 1").get(resource.id))throw new Error("home_capacity");}
     db.prepare("UPDATE stays SET name=?,location=? WHERE id=?").run(name,location,stayId);
     db.prepare("INSERT INTO settings (key,value) VALUES ('host_display_name',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").run(hostDisplayName);
+    db.prepare("INSERT INTO settings (key,value) VALUES ('show_smoking_notice',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").run(showSmokingNotice);
+    db.prepare("INSERT INTO settings (key,value) VALUES ('show_alcohol_notice',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").run(showAlcoholNotice);
     for(const resource of parsed){if(resource.id===null)db.prepare("INSERT INTO resources (stay_id,name,capacity,priority,admin_only,requires_sofa_consent) VALUES (?,?,?,?,?,?)").run(stayId,resource.name,resource.capacity,resource.priority,resource.adminOnly,resource.requiresSofaConsent);else db.prepare("UPDATE resources SET name=?,capacity=?,priority=?,admin_only=?,requires_sofa_consent=? WHERE id=? AND stay_id=?").run(resource.name,resource.capacity,resource.priority,resource.adminOnly,resource.requiresSofaConsent,resource.id,stayId);}
     for(const resource of existing){if(!submittedIds.includes(resource.id))db.prepare("DELETE FROM resources WHERE id=? AND stay_id=?").run(resource.id,stayId);}
     addAuditLog("home.edited","stay",stayId);

@@ -69,6 +69,8 @@ export default function BookingCalendar({
   unlocked,
   guestName,
   hostDisplayName,
+  showSmokingNotice,
+  showAlcoholNotice,
   timeZone,
   submissionKey,
 }: {
@@ -77,6 +79,8 @@ export default function BookingCalendar({
   unlocked: boolean;
   guestName: string;
   hostDisplayName: string;
+  showSmokingNotice: boolean;
+  showAlcoholNotice: boolean;
   timeZone: string;
   submissionKey: string;
 }) {
@@ -193,13 +197,14 @@ export default function BookingCalendar({
           : t("固定住所 · 睡位由管理员维护")}{" "}
         · {t("退房日不占床位")}
       </p>
-      {!isTrip && (
+      {!isTrip && (showSmokingNotice || showAlcoholNotice) && (
         <section className="house-rules" aria-labelledby="house-rules-title">
           <header>
             <p>{t("入住须知")}</p>
             <h2 id="house-rules-title">{t("请在申请住宿前了解并遵守。")}</h2>
           </header>
-          <div className="house-rule-list">
+          <div className={`house-rule-list ${showSmokingNotice && showAlcoholNotice ? "" : "single"}`}>
+            {showSmokingNotice && (
             <article className="house-rule smoke-rule">
               <span aria-hidden="true">01</span>
               <div>
@@ -207,8 +212,10 @@ export default function BookingCalendar({
                 <p>{t("这里是无烟住所，非常讨厌烟味。请勿在公寓内吸烟。")}</p>
               </div>
             </article>
+            )}
+            {showAlcoholNotice && (
             <article className="house-rule alcohol-rule">
-              <span aria-hidden="true">02</span>
+              <span aria-hidden="true">{showSmokingNotice ? "02" : "01"}</span>
               <div>
                 <h3>{t("饮酒提醒")}</h3>
                 <p>
@@ -217,6 +224,7 @@ export default function BookingCalendar({
                 </p>
               </div>
             </article>
+            )}
           </div>
         </section>
       )}

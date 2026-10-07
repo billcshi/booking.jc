@@ -12,10 +12,14 @@ export default function HomeManager({
   home,
   resources,
   hostDisplayName,
+  showSmokingNotice,
+  showAlcoholNotice,
 }: {
   home: Stay;
   resources: StayResource[];
   hostDisplayName: string;
+  showSmokingNotice: boolean;
+  showAlcoholNotice: boolean;
 }) {
   const { t } = useI18n();
   const [nextKey, setNextKey] = useState(1);
@@ -84,6 +88,28 @@ export default function HomeManager({
               <input name="location" defaultValue={home.location} required maxLength={120} />
             </label>
           </div>
+          <fieldset className="house-rule-settings" aria-describedby="house-rule-settings-help">
+            <legend>{t("入住须知")}</legend>
+            <p id="house-rule-settings-help">{t("分别控制固定住所公开页面上的两条提示。")}</p>
+            <div className="house-rule-options">
+              <label className="house-rule-option">
+                <input
+                  name="show_smoking_notice"
+                  type="checkbox"
+                  defaultChecked={showSmokingNotice}
+                />
+                <span><b>{t("显示禁烟提示")}</b><small>{t("无烟住所，并说明 Host 对烟味敏感。")}</small></span>
+              </label>
+              <label className="house-rule-option">
+                <input
+                  name="show_alcohol_notice"
+                  type="checkbox"
+                  defaultChecked={showAlcoholNotice}
+                />
+                <span><b>{t("显示饮酒提示")}</b><small>{t("说明年龄限制与 Host 的饮酒建议。")}</small></span>
+              </label>
+            </div>
+          </fieldset>
           <div className="resource-editor">
             {rows.map((resource, index) => (
               <div className="resource-row" key={resource.rowKey}>

@@ -36,6 +36,7 @@ const en = {
   "公开原因": "Public reason", "Host 外出": "Host away", "设为不可住": "Mark unavailable", "恢复开放": "Reopen",
   "固定住所": "Permanent home", "维护住所名称、地点标签、睡位容量和自动分配顺序。": "Manage home name, location label, capacity, and assignment order.", "Host 显示名": "Host display name",
   "用于“提交给谁确认”等公共文案，例如 Host 或你的昵称。": "Used in public copy such as who approves requests, for example Host or your nickname.", "显示名称": "Display name", "地点标签": "Location label", "睡位名称": "Sleeping-space name", "容量": "Capacity",
+  "分别控制固定住所公开页面上的两条提示。": "Control the two notices shown on the permanent home's public page.", "显示禁烟提示": "Show no-smoking notice", "显示饮酒提示": "Show alcohol notice", "无烟住所，并说明 Host 对烟味敏感。": "State that the home is smoke-free and the host is sensitive to smoke odor.", "说明年龄限制与 Host 的饮酒建议。": "Show the age restriction and the host's guidance about alcohol.",
   "可见性": "Visibility", "公开容量": "Public capacity", "仅管理员备用": "Host-only backup", "使用条件": "Requirement", "无需额外同意": "No extra consent", "需住客接受 sofa": "Guest must accept sofa", "新睡位": "new sleeping space",
   "上移": "Move up", "下移": "Move down", "移除": "Remove", "添加睡位": "Add sleeping space", "顺序决定自动分配优先级。已有分配的睡位不能删除，容量也不能低于其历史峰值。": "Order controls automatic assignment priority. Assigned spaces cannot be removed or reduced below their historical peak.",
   "保存固定住所设置": "Save permanent-home settings", "申请与住宿记录": "Requests and stay records", "先处理待确认申请，再查看即将入住和历史记录。": "Handle pending requests, then review upcoming and historical stays.", "个待处理": "pending", "个当前记录": "current records",

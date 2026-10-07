@@ -62,6 +62,8 @@ export default async function Admin({
     inviteKeys = listInviteKeys(),
     groupKey = getSetting("group_key") ?? "",
     hostDisplayName = getSetting("host_display_name") ?? "Host",
+    showSmokingNotice = getSetting("show_smoking_notice") !== "0",
+    showAlcoholNotice = getSetting("show_alcohol_notice") !== "0",
     auditLogs=listAuditLogs(), trash=listDeletedRequests(), feedToken=getSetting("calendar_feed_token")??"",
     {
       error,
@@ -102,6 +104,8 @@ export default async function Admin({
         home.name,
         home.location,
         hostDisplayName,
+        showSmokingNotice,
+        showAlcoholNotice,
         homeResources.map((resource) => [
           resource.id,
           resource.name,
@@ -209,6 +213,8 @@ export default async function Admin({
               home={home}
               resources={homeResources}
               hostDisplayName={hostDisplayName}
+              showSmokingNotice={showSmokingNotice}
+              showAlcoholNotice={showAlcoholNotice}
             />
           )}
           <BlackoutManager stays={stays} blackouts={blackouts} />

@@ -36,6 +36,9 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
 }
+.house-rule-list.single {
+  grid-template-columns: 1fr;
+}
 .house-rule {
   display: grid;
   grid-template-columns: 34px 1fr;

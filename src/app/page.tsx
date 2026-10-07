@@ -30,7 +30,9 @@ export default async function Home({
     { error } = await searchParams,
     access = await getGroupAccess(),
     unlocked = Boolean(access),
-    hostDisplayName = getSetting("host_display_name") ?? "Host";
+    hostDisplayName = getSetting("host_display_name") ?? "Host",
+    showSmokingNotice = getSetting("show_smoking_notice") !== "0",
+    showAlcoholNotice = getSetting("show_alcohol_notice") !== "0";
   const views = stays.map((stay) => {
     const usage: Record<
       string,
@@ -106,6 +108,8 @@ export default async function Home({
           unlocked={unlocked}
           guestName={access?.guestName ?? ""}
           hostDisplayName={hostDisplayName}
+          showSmokingNotice={showSmokingNotice}
+          showAlcoholNotice={showAlcoholNotice}
           timeZone={process.env.APP_TIME_ZONE ?? "UTC"}
           submissionKey={randomUUID()}
         />
