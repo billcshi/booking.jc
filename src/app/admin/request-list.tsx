@@ -227,7 +227,7 @@ function RequestCard({
                 type="checkbox"
                 defaultChecked={Boolean(r.accepts_air_mattress)}
               />{" "}
-              {t("接受隐藏备用位")}
+              {t("允许使用 Host 备用位")}
             </label>
             </>:null}
             <label className="check">

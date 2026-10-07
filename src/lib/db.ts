@@ -20,7 +20,7 @@ export const db =
   });
 if (process.env.NODE_ENV !== "production") globalDb.bookingJcDb = db;
 
-export type Stay = { id: number; name: string; location: string; starts_on: string | null; ends_on: string | null; total_capacity: number; hidden_capacity:number; sofa_capacity:number };
+export type Stay = { id: number; name: string; location: string; starts_on: string | null; ends_on: string | null; total_capacity: number; sofa_capacity:number };
 export type StayResource = { id:number; stay_id:number; name:string; capacity:number; priority:number; admin_only:number; requires_sofa_consent:number };
 export type RequestAllocation = { request_id:number; resource_id:number; seats:number };
 export type InviteKey = { id:number; guest_name:string; code:string; version:number; active:number; use_count:number; last_used_at:string|null; created_at:string };
@@ -46,7 +46,6 @@ export function listRequestsForInvite(inviteKeyId:number):GuestRequest[]{
 
 export function listStays(): Stay[] {
   return db.prepare(`SELECT s.*, COALESCE(SUM(CASE WHEN r.admin_only=0 THEN r.capacity ELSE 0 END),0) total_capacity,
-    COALESCE(SUM(CASE WHEN r.admin_only=1 THEN r.capacity ELSE 0 END),0) hidden_capacity,
     COALESCE(SUM(CASE WHEN r.requires_sofa_consent=1 THEN r.capacity ELSE 0 END),0) sofa_capacity
     FROM stays s LEFT JOIN resources r ON r.stay_id=s.id
     WHERE s.is_public=1 GROUP BY s.id ORDER BY COALESCE(s.starts_on,'0000')`).all() as Stay[];
@@ -96,11 +95,10 @@ function previewConflict(r:BookingRequest):string|null{
 export function publicSchedule() {
   return db.prepare(`SELECT q.id, q.stay_id, q.guest_name, q.starts_on, q.ends_on, q.party_size, q.status, q.exclusive,
     COALESCE(SUM(CASE WHEN r.admin_only=0 THEN a.seats ELSE 0 END),0) public_seats,
-    COALESCE(SUM(CASE WHEN r.admin_only=1 THEN a.seats ELSE 0 END),0) hidden_seats,
     GROUP_CONCAT(r.name || ' × ' || a.seats, ', ') allocation
     FROM requests q LEFT JOIN allocations a ON a.request_id=q.id LEFT JOIN resources r ON r.id=a.resource_id
     WHERE q.deleted_at IS NULL AND q.status IN ('approved','pending') GROUP BY q.id ORDER BY q.starts_on`).all() as Array<{
-      id:number; stay_id:number; guest_name:string; starts_on:string; ends_on:string; party_size:number; status:string; exclusive:number; public_seats:number; hidden_seats:number; allocation:string|null
+      id:number; stay_id:number; guest_name:string; starts_on:string; ends_on:string; party_size:number; status:string; exclusive:number; public_seats:number; allocation:string|null
     }>;
 }
 

@@ -110,7 +110,6 @@ export default async function RequestPage({
           {request.is_home === 1 && (
             <>
               <div><dt>Sofa</dt><dd>{request.accepts_sofa ? t("可以") : t("不可以")}</dd></div>
-              <div><dt>{t("隐藏备用位")}</dt><dd>{request.accepts_air_mattress ? t("接受") : t("不接受")}</dd></div>
             </>
           )}
           {request.exclusive === 1 && <div><dt>{t("Stay type")}</dt><dd>🔒 {t("希望独占住宿")}</dd></div>}
@@ -126,7 +125,7 @@ export default async function RequestPage({
             <span className="status pending">{t("修改待审批")}</span>
             <p><b>{request.change_guest_name}</b> · {request.change_party_size} {t("人")}</p>
             <p>{t("申请改为")} <b>{request.change_starts_on} → {request.change_ends_on}</b></p>
-            {request.is_home === 1 && <p>Sofa：{proposedSofa ? t("可以") : t("不可以")} · {t("隐藏备用位")}：{proposedAirMattress ? t("接受") : t("不接受")}</p>}
+            {request.is_home === 1 && <p>Sofa：{proposedSofa ? t("可以") : t("不可以")}</p>}
             <p>{t("Stay type")}：{proposedExclusive ? `🔒 ${t("希望独占住宿")}` : t("共享住宿")}</p>
             {proposedNote && <p>{t("住客留言")}：{proposedNote}</p>}
             <small>{t("审批前仍保留上方的原日期和床位安排。")}</small>
@@ -157,13 +156,10 @@ export default async function RequestPage({
               </label>
               {request.is_home === 1 && (
                 <div className="request-option-list">
+                  <input name="accepts_air_mattress" type="hidden" value={proposedAirMattress ? "1" : ""} />
                   <label className="check">
                     <input name="accepts_sofa" type="checkbox" defaultChecked={Boolean(proposedSofa)} />
                     {t("可以睡 sofa")}
-                  </label>
-                  <label className="check">
-                    <input name="accepts_air_mattress" type="checkbox" defaultChecked={Boolean(proposedAirMattress)} />
-                    {t("接受隐藏备用位")}
                   </label>
                 </div>
               )}

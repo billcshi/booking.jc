@@ -38,7 +38,6 @@ export default async function Home({
       string,
       {
         approved: number;
-        hiddenApproved: number;
         people: number;
         pending: number;
         guests: Array<{ name: string; size: number }>;
@@ -48,10 +47,9 @@ export default async function Home({
     > = {};
     for (const request of requests.filter((r) => r.stay_id === stay.id)) {
       for (const day of nights(request.starts_on, request.ends_on)) {
-        usage[day] ??= { approved: 0, hiddenApproved:0, people: 0, pending: 0, guests: [] };
+        usage[day] ??= { approved: 0, people: 0, pending: 0, guests: [] };
         if(request.status === "approved"){
           usage[day].approved += request.public_seats;
-          usage[day].hiddenApproved += request.hidden_seats;
           usage[day].people += request.party_size;
         }else usage[day].pending += request.party_size;
         if (unlocked && request.status === "approved") {
@@ -67,11 +65,20 @@ export default async function Home({
     }
     for (const block of blackouts.filter((b) => b.stay_id === stay.id)) {
       for (const day of nights(block.starts_on, block.ends_on)) {
-        usage[day] ??= { approved: 0, hiddenApproved:0, people: 0, pending: 0, guests: [] };
+        usage[day] ??= { approved: 0, people: 0, pending: 0, guests: [] };
         usage[day].blocked = unlocked ? block.reason : "__private__";
       }
     }
-    return { ...stay, location: unlocked ? stay.location : "", nights: usage };
+    return {
+      id: stay.id,
+      name: stay.name,
+      location: unlocked ? stay.location : "",
+      starts_on: stay.starts_on,
+      ends_on: stay.ends_on,
+      total_capacity: stay.total_capacity,
+      sofa_capacity: stay.sofa_capacity,
+      nights: usage,
+    };
   });
   return (
     <main>

@@ -7,7 +7,6 @@ import SubmitButton from "./submit-button";
 
 type Night = {
   approved: number;
-  hiddenApproved: number;
   people: number;
   pending: number;
   guests: Array<{ name: string; size: number }>;
@@ -21,7 +20,6 @@ type StayView = {
   starts_on: string | null;
   ends_on: string | null;
   total_capacity: number;
-  hidden_capacity: number;
   sofa_capacity: number;
   nights: Record<string, Night>;
 };
@@ -96,13 +94,12 @@ export default function BookingCalendar({
     [start, setStart] = useState(""),
     [end, setEnd] = useState(""),
     [exclusive, setExclusive] = useState(false),
-    [acceptsAirMattress,setAcceptsAirMattress]=useState(false),
     [showHistory, setShowHistory] = useState(
       Boolean(stay?.starts_on && stay.starts_on < today),
     );
   if (!stay) return null;
   const cells = monthGrid(month),
-    night = stay.nights[focus] ?? { approved: 0, hiddenApproved:0, people: 0, pending: 0, guests: [] },
+    night = stay.nights[focus] ?? { approved: 0, people: 0, pending: 0, guests: [] },
     remaining = Math.max(0, stay.total_capacity - night.approved),
     isTrip = Boolean(stay.starts_on && stay.ends_on),
     tripStartMonth = stay.starts_on ? monthOf(stay.starts_on) : null,
@@ -139,8 +136,7 @@ export default function BookingCalendar({
     if (stay.nights[day]?.blocked || stay.nights[day]?.exclusive) return false;
     const use=stay.nights[day];
     const regularAvailable=(use?.approved??0)<stay.total_capacity;
-    const mattressAvailable=!isTrip&&acceptsAirMattress&&(use?.hiddenApproved??0)<stay.hidden_capacity;
-    return regularAvailable||mattressAvailable;
+    return regularAvailable;
   }
   function canEndAt(day: string) {
     if (!start || day <= start || Boolean(stay.ends_on && day > stay.ends_on))
@@ -328,7 +324,6 @@ export default function BookingCalendar({
             {cells.map((day) => {
               const use = stay.nights[day] ?? {
                   approved: 0,
-                  hiddenApproved:0,
                   people: 0,
                   pending: 0,
                   guests: [],
@@ -336,7 +331,6 @@ export default function BookingCalendar({
                 left = use.exclusive
                   ? 0
                   : Math.max(0, stay.total_capacity - use.approved),
-                overflowOnly=left===0&&acceptsAirMattress&&use.hiddenApproved<stay.hidden_capacity&&!use.blocked&&!use.exclusive,
                 other = monthOf(day) !== month,
                 past = day < today,
                 selected = day === focus,
@@ -373,7 +367,7 @@ export default function BookingCalendar({
                   tabIndex={selected?0:-1}
                   onKeyDown={(event)=>{const moves:Record<string,number>={ArrowLeft:-1,ArrowRight:1,ArrowUp:-7,ArrowDown:7};if(event.key in moves){event.preventDefault();moveCalendarFocus(day,moves[event.key])}}}
                   className={`${other ? "other-month " : ""}${past && !showHistory ? "past-hidden " : ""}${selected ? "focused " : ""}${inRange ? "in-range " : ""}${day === start ? "range-start " : ""}${day === end ? "range-end " : ""}${tier}`}
-                  aria-label={`${pretty(day, locale)}，${outsideTrip ? t("非此次行程") : departure ? t("退房日") : use.blocked ? t("不可住") : use.exclusive ? t("独占住宿") : left ? `${t("余")} ${left} ${t("位")}` : overflowOnly ? t("常规床位已满，隐藏备用位可用") : t("已满")}${outsideTrip || departure ? "" : `，${use.pending} ${t("人待确认")}`}`}
+                  aria-label={`${pretty(day, locale)}，${outsideTrip ? t("非此次行程") : departure ? t("退房日") : use.blocked ? t("不可住") : use.exclusive ? t("独占住宿") : left ? `${t("余")} ${left} ${t("位")}` : t("已满")}${outsideTrip || departure ? "" : `，${use.pending} ${t("人待确认")}`}`}
                 >
                   <strong>{Number(day.slice(-2))}</strong>
                   <small>
@@ -387,9 +381,7 @@ export default function BookingCalendar({
                             ? `🔒 ${t("独占")}`
                             : left
                               ? `✓ ${t("余")} ${left}`
-                              : overflowOnly
-                                ? `＋ ${t("备用位")}`
-                                : `— ${t("已满")}`}
+                              : `— ${t("已满")}`}
                   </small>
                   {day === start && <b className="range-label">{t("入住")}</b>}
                   {day === end && <b className="range-label">{t("退房")}</b>}
@@ -545,10 +537,6 @@ export default function BookingCalendar({
             </label>
             {!isTrip&&stay.sofa_capacity>0&&<label className="check">
               <input name="accepts_sofa" type="checkbox" /> {t("可以睡 sofa")}
-            </label>}
-            {!isTrip&&stay.hidden_capacity>0&&
-            <label className="check">
-              <input name="accepts_air_mattress" type="checkbox" checked={acceptsAirMattress} onChange={event=>setAcceptsAirMattress(event.target.checked)} /> {t("接受隐藏备用位")}
             </label>}
             <label className="check exclusive-request">
               <input name="exclusive" type="checkbox" checked={exclusive} disabled={exclusiveUnavailable} onChange={(event)=>setExclusive(event.target.checked)} />

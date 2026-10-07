@@ -137,14 +137,15 @@ export default function HomeManager({
                   />
                 </label>
                 <label>
-                  {t("可见性")}
+                  {t("访客申请范围")}
                   <select
                     name="resource_admin_only"
                     value={resource.admin_only}
                     onChange={(event) => update(resource.rowKey, { admin_only: Number(event.target.value) })}
                   >
-                    <option value={0}>{t("公开容量")}</option><option value={1}>{t("仅管理员备用")}</option>
+                    <option value={0}>{t("访客可申请")}</option><option value={1}>{t("仅 Host 可安排")}</option>
                   </select>
+                  <small>{resource.admin_only ? t("不向访客显示，也不计入公开容量。") : t("访客可在公开日历中申请使用。")}</small>
                 </label>
                 <label>
                   {t("使用条件")}
