@@ -193,6 +193,33 @@ export default function BookingCalendar({
           : t("固定住所 · 睡位由管理员维护")}{" "}
         · {t("退房日不占床位")}
       </p>
+      {!isTrip && (
+        <section className="house-rules" aria-labelledby="house-rules-title">
+          <header>
+            <p>{t("入住须知")}</p>
+            <h2 id="house-rules-title">{t("请在申请住宿前了解并遵守。")}</h2>
+          </header>
+          <div className="house-rule-list">
+            <article className="house-rule smoke-rule">
+              <span aria-hidden="true">01</span>
+              <div>
+                <h3>{t("公寓内禁止吸烟")}</h3>
+                <p>{t("这里是无烟住所，非常讨厌烟味。请勿在公寓内吸烟。")}</p>
+              </div>
+            </article>
+            <article className="house-rule alcohol-rule">
+              <span aria-hidden="true">02</span>
+              <div>
+                <h3>{t("饮酒提醒")}</h3>
+                <p>
+                  <strong>{t("未满 21 岁不得饮酒。")}</strong>{" "}
+                  {hostDisplayName} {t("建议所有人都不要饮酒；如果仍选择饮酒，请不要纯饮烈酒。")}
+                </p>
+              </div>
+            </article>
+          </div>
+        </section>
+      )}
       <div className="heat-legend">
         <span className="empty">{t("空")}</span><span className="low">{t("少量占用")}</span><span className="high">{t("接近满")}</span><span className="full">{t("已满")}</span><span className="exclusive">{t("独占")}</span><span className="blocked">{t("不可住")}</span>{isTrip && <span className="outside">{t("非行程")}</span>}
       </div>

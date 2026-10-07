@@ -2,6 +2,76 @@
   margin: 0;
   color: #66736c;
 }
+.house-rules {
+  display: grid;
+  grid-template-columns: minmax(180px, .55fr) minmax(0, 1.45fr);
+  gap: 24px;
+  padding: 22px;
+  border: 1px solid #d8cfc0;
+  border-radius: 16px;
+  background:
+    linear-gradient(115deg, rgb(255 253 248 / 96%), rgb(245 240 231 / 92%)),
+    repeating-linear-gradient(90deg, transparent 0 31px, rgb(33 66 56 / 5%) 31px 32px);
+  box-shadow: 0 12px 34px rgb(40 53 43 / 5%);
+}
+.house-rules > header {
+  padding-right: 22px;
+  border-right: 1px solid #d8cfc0;
+}
+.house-rules > header p {
+  margin: 0 0 9px;
+  color: var(--rust);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .14em;
+}
+.house-rules > header h2 {
+  max-width: 250px;
+  margin: 0;
+  font: 600 24px/1.15 var(--font-serif);
+  letter-spacing: -.02em;
+}
+.house-rule-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.house-rule {
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  gap: 12px;
+  align-items: start;
+  padding: 14px;
+  border-radius: 12px;
+  background: rgb(255 255 255 / 72%);
+}
+.house-rule > span {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--dark);
+  color: #fff;
+  font: 700 10px var(--font-sans);
+  letter-spacing: .08em;
+}
+.house-rule.alcohol-rule > span {
+  background: var(--rust);
+}
+.house-rule h3 {
+  margin: 1px 0 5px;
+  font: 600 17px/1.2 var(--font-serif);
+}
+.house-rule p {
+  margin: 0;
+  color: #59675f;
+  font-size: 12px;
+  line-height: 1.55;
+}
+.house-rule strong {
+  color: #8f351d;
+}
 .month-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 310px;
@@ -273,6 +343,19 @@
   margin-top: 14px;
 }
 @media (max-width: 850px) {
+  .house-rules {
+    grid-template-columns: 1fr;
+    margin: 0 16px;
+    gap: 16px;
+  }
+  .house-rules > header {
+    padding: 0 0 14px;
+    border-right: 0;
+    border-bottom: 1px solid #d8cfc0;
+  }
+  .house-rule-list {
+    grid-template-columns: 1fr;
+  }
   .month-layout {
     grid-template-columns: 1fr;
   }
