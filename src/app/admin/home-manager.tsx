@@ -98,7 +98,7 @@ export default function HomeManager({
                   type="checkbox"
                   defaultChecked={showSmokingNotice}
                 />
-                <span><b>{t("显示禁烟提示")}</b><small>{t("无烟住所，并说明 Host 对烟味敏感。")}</small></span>
+                <span><b>{t("显示禁烟提示")}</b><small>{t("无烟住所，涵盖电子烟、烟草与大麻，并说明 Host 对烟味敏感。")}</small></span>
               </label>
               <label className="house-rule-option">
                 <input

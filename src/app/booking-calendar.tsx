@@ -204,8 +204,8 @@ export default function BookingCalendar({
             <article className="house-rule smoke-rule">
               <span aria-hidden="true">01</span>
               <div>
-                <h3>{t("公寓内禁止吸烟")}</h3>
-                <p>{t("这里是无烟住所，非常讨厌烟味。请勿在公寓内吸烟。")}</p>
+                <h3>{t("公寓内禁止吸烟或使用电子烟")}</h3>
+                <p>{t("这里是无烟住所，非常讨厌烟味。公寓内禁止吸烟、使用电子烟（vaping）或任何其他烟草类产品，也禁止吸食或雾化大麻。")}</p>
               </div>
             </article>
             )}
