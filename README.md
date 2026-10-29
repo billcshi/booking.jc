@@ -45,7 +45,7 @@ private network details, or exact home location.
 - Optional sofa and hidden overflow capacity for the permanent home stay
 - Exclusive stays that prevent overlapping bookings at the same place
 - Temporary trip stays with editable dates, locations, rooms, and beds
-- Host blackout periods and optional automatic home blackouts during trips
+- Host blackout periods for at-home hosting pauses, private plans, and optional automatic home blackouts during trips
 - Interactive first-run home and sleeping-resource configuration
 - Admin editing for the host name, home location, capacities, visibility, and allocation order
 - Private, versioned Agent API for pending review, approval, rejection, and atomic adjustment-and-approval

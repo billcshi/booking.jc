@@ -1,1 +1,91 @@
 .natural-calendar>button.is-blocked{background:repeating-linear-gradient(135deg,#f0ece7,#f0ece7 7px,#e6dfd7 7px,#e6dfd7 14px);color:#76685f}.blocked-panel{display:grid;gap:5px;background:#eee7df;color:#6d5144;border-radius:10px;padding:16px;margin-bottom:16px}.blocked-panel strong{font:600 21px var(--font-serif)}.blocked-panel span{font-size:12px}.blackout-list{margin-top:18px;border-top:1px solid var(--line)}.blackout-list>div{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:11px 0;border-bottom:1px solid var(--line)}.blackout-list span,.blackout-list b,.blackout-list small{display:block}.blackout-list small{color:#6d7771;margin-top:3px}.blackout-list button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:7px 10px;cursor:pointer}
+
+.blackout-reason-picker {
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.blackout-reason-picker legend {
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.blackout-reason-picker > div {
+  display: grid;
+  gap: 9px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.blackout-reason-picker label {
+  align-items: flex-start;
+  background: #faf9f5;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  cursor: pointer;
+  display: flex;
+  gap: 10px;
+  margin: 0;
+  min-height: 84px;
+  padding: 13px;
+  transition: background 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.blackout-reason-picker label:hover {
+  border-color: #a8b0aa;
+}
+
+.blackout-reason-picker label.is-selected {
+  background: #eef2ec;
+  border-color: #69786e;
+  box-shadow: inset 0 0 0 1px #69786e;
+}
+
+.blackout-reason-picker label:focus-within {
+  box-shadow: 0 0 0 3px rgb(67 85 74 / 18%);
+}
+
+.blackout-reason-picker input {
+  accent-color: #43554a;
+  border: 0;
+  flex: 0 0 auto;
+  height: 18px;
+  margin: 2px 0 0;
+  padding: 0;
+  width: 18px;
+}
+
+.blackout-reason-picker span,
+.blackout-reason-picker b,
+.blackout-reason-picker small {
+  display: block;
+}
+
+.blackout-reason-picker b {
+  font-size: 13px;
+}
+
+.blackout-reason-picker small {
+  color: #68736d;
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.4;
+  margin-top: 4px;
+}
+
+.blackout-reason-note {
+  color: #68736d;
+  font-size: 11px;
+  margin: -5px 0 4px;
+}
+
+@media (max-width: 700px) {
+  .blackout-reason-picker > div {
+    grid-template-columns: 1fr;
+  }
+
+  .blackout-reason-picker label {
+    min-height: 0;
+  }
+}
