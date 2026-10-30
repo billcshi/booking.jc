@@ -62,6 +62,12 @@
 .house-rule.alcohol-rule > span {
   background: var(--rust);
 }
+.house-rule.quiet-rule > span {
+  background: #315f68;
+}
+.house-rule-list.three .quiet-rule {
+  grid-column: 1 / -1;
+}
 .house-rule h3 {
   margin: 1px 0 5px;
   font: 600 17px/1.2 var(--font-serif);

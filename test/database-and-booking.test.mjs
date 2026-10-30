@@ -46,6 +46,7 @@ test("legacy requests migrate safely and initialization is idempotent", () => {
   assert.match(db.prepare("SELECT value FROM settings WHERE key='calendar_feed_token'").get().value,/^[A-Za-z0-9_-]{32}$/);
   assert.equal(db.prepare("SELECT value FROM settings WHERE key='show_smoking_notice'").get().value,"1");
   assert.equal(db.prepare("SELECT value FROM settings WHERE key='show_alcohol_notice'").get().value,"1");
+  assert.equal(db.prepare("SELECT value FROM settings WHERE key='show_quiet_hours_notice'").get().value,"1");
   db.prepare("UPDATE settings SET value='0' WHERE key='show_smoking_notice'").run();
   db.prepare("UPDATE requests SET submission_key=? WHERE id=1").run("00000000-0000-4000-8000-000000000001");
   assert.throws(() => db.prepare(`INSERT INTO requests
@@ -74,6 +75,7 @@ test("legacy requests migrate safely and initialization is idempotent", () => {
   assert.equal(db.prepare("SELECT COUNT(*) count FROM requests").get().count, 1);
   assert.equal(db.prepare("SELECT COUNT(*) count FROM settings WHERE key='calendar_feed_token'").get().count,1);
   assert.equal(db.prepare("SELECT value FROM settings WHERE key='show_smoking_notice'").get().value,"0");
+  assert.equal(db.prepare("SELECT value FROM settings WHERE key='show_quiet_hours_notice'").get().value,"1");
   const compacted = JSON.parse(db.prepare(
     "SELECT response_json FROM admin_api_idempotency WHERE idempotency_key='legacy-full-response'",
   ).get().response_json);

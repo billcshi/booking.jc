@@ -338,8 +338,9 @@ export function initializeDatabase({
     db.prepare("INSERT OR IGNORE INTO settings (key,value) VALUES ('host_display_name','Host')").run();
     db.prepare("INSERT OR IGNORE INTO settings (key,value) VALUES ('show_smoking_notice','1')").run();
     db.prepare("INSERT OR IGNORE INTO settings (key,value) VALUES ('show_alcohol_notice','1')").run();
+    db.prepare("INSERT OR IGNORE INTO settings (key,value) VALUES ('show_quiet_hours_notice','1')").run();
     db.prepare("INSERT OR IGNORE INTO settings (key,value) VALUES ('calendar_feed_token',?)").run(randomBytes(24).toString("base64url"));
-    db.prepare("INSERT INTO settings (key,value) VALUES ('schema_version','3') ON CONFLICT(key) DO UPDATE SET value=excluded.value").run();
+    db.prepare("INSERT INTO settings (key,value) VALUES ('schema_version','4') ON CONFLICT(key) DO UPDATE SET value=excluded.value").run();
 
     if (!db.prepare("SELECT id FROM stays WHERE starts_on IS NULL AND ends_on IS NULL LIMIT 1").get()) {
       db.transaction(() => {

@@ -69,6 +69,7 @@ export default function BookingCalendar({
   hostDisplayName,
   showSmokingNotice,
   showAlcoholNotice,
+  showQuietHoursNotice,
   timeZone,
   submissionKey,
 }: {
@@ -79,6 +80,7 @@ export default function BookingCalendar({
   hostDisplayName: string;
   showSmokingNotice: boolean;
   showAlcoholNotice: boolean;
+  showQuietHoursNotice: boolean;
   timeZone: string;
   submissionKey: string;
 }) {
@@ -153,6 +155,7 @@ export default function BookingCalendar({
     return false;
   }
   const exclusiveUnavailable = Boolean(start && end && hasApprovedGuests(start, end));
+  const visibleHouseRuleCount = [showSmokingNotice, showAlcoholNotice, showQuietHoursNotice].filter(Boolean).length;
   function pickDate(day: string) {
     setFocus(day);
     if (day < today || (!inTripNight(day) && !isTripDeparture(day))) return;
@@ -193,13 +196,13 @@ export default function BookingCalendar({
           : t("固定住所 · 睡位由管理员维护")}{" "}
         · {t("退房日不占床位")}
       </p>
-      {!isTrip && (showSmokingNotice || showAlcoholNotice) && (
+      {!isTrip && visibleHouseRuleCount > 0 && (
         <section className="house-rules" aria-labelledby="house-rules-title">
           <header>
             <p>{t("入住须知")}</p>
             <h2 id="house-rules-title">{t("请在申请住宿前了解并遵守。")}</h2>
           </header>
-          <div className={`house-rule-list ${showSmokingNotice && showAlcoholNotice ? "" : "single"}`}>
+          <div className={`house-rule-list ${visibleHouseRuleCount === 1 ? "single" : ""} ${visibleHouseRuleCount === 3 ? "three" : ""}`}>
             {showSmokingNotice && (
             <article className="house-rule smoke-rule">
               <span aria-hidden="true">01</span>
@@ -218,6 +221,15 @@ export default function BookingCalendar({
                   <strong>{t("未满 21 岁不得饮酒。")}</strong>{" "}
                   {hostDisplayName} {t("建议所有人都不要饮酒；如果仍选择饮酒，请不要纯饮烈酒。")}
                 </p>
+              </div>
+            </article>
+            )}
+            {showQuietHoursNotice && (
+            <article className="house-rule quiet-rule">
+              <span aria-hidden="true">{String((showSmokingNotice ? 1 : 0) + (showAlcoholNotice ? 1 : 0) + 1).padStart(2, "0")}</span>
+              <div>
+                <h3>{t("晚上 10 点后为公寓安静时段")}</h3>
+                <p><strong>{t("请从晚上 10:00 起保持安静。")}</strong>{" "}{t("如违反公寓安静时段规定，HOA 会向房东收取 500 美元罚款。")}</p>
               </div>
             </article>
             )}

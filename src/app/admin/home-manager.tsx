@@ -14,12 +14,14 @@ export default function HomeManager({
   hostDisplayName,
   showSmokingNotice,
   showAlcoholNotice,
+  showQuietHoursNotice,
 }: {
   home: Stay;
   resources: StayResource[];
   hostDisplayName: string;
   showSmokingNotice: boolean;
   showAlcoholNotice: boolean;
+  showQuietHoursNotice: boolean;
 }) {
   const { t } = useI18n();
   const [nextKey, setNextKey] = useState(1);
@@ -90,7 +92,7 @@ export default function HomeManager({
           </div>
           <fieldset className="house-rule-settings" aria-describedby="house-rule-settings-help">
             <legend>{t("入住须知")}</legend>
-            <p id="house-rule-settings-help">{t("分别控制固定住所公开页面上的两条提示。")}</p>
+            <p id="house-rule-settings-help">{t("分别控制固定住所公开页面上的三条提示。")}</p>
             <div className="house-rule-options">
               <label className="house-rule-option">
                 <input
@@ -107,6 +109,14 @@ export default function HomeManager({
                   defaultChecked={showAlcoholNotice}
                 />
                 <span><b>{t("显示饮酒提示")}</b><small>{t("说明年龄限制与 Host 的饮酒建议。")}</small></span>
+              </label>
+              <label className="house-rule-option">
+                <input
+                  name="show_quiet_hours_notice"
+                  type="checkbox"
+                  defaultChecked={showQuietHoursNotice}
+                />
+                <span><b>{t("显示安静时段提示")}</b><small>{t("晚上 10 点后请保持安静；违反规定时 HOA 会向房东收取 500 美元罚款。")}</small></span>
               </label>
             </div>
           </fieldset>

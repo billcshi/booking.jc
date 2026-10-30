@@ -43,7 +43,8 @@ export default async function Home({
     unlocked = Boolean(access),
     hostDisplayName = getSetting("host_display_name") ?? "Host",
     showSmokingNotice = getSetting("show_smoking_notice") !== "0",
-    showAlcoholNotice = getSetting("show_alcohol_notice") !== "0";
+    showAlcoholNotice = getSetting("show_alcohol_notice") !== "0",
+    showQuietHoursNotice = getSetting("show_quiet_hours_notice") !== "0";
   const views = stays.map((stay) => {
     const usage: Record<
       string,
@@ -128,6 +129,7 @@ export default async function Home({
           hostDisplayName={hostDisplayName}
           showSmokingNotice={showSmokingNotice}
           showAlcoholNotice={showAlcoholNotice}
+          showQuietHoursNotice={showQuietHoursNotice}
           timeZone={timeZone}
           submissionKey={randomUUID()}
         />
