@@ -223,6 +223,10 @@ export function initializeDatabase({
         ON admin_api_idempotency(created_at);
     `);
 
+    if (!db.prepare("PRAGMA table_info(blackouts)").all().some(column => column.name === "reason_type")) {
+      db.exec("ALTER TABLE blackouts ADD COLUMN reason_type TEXT");
+    }
+
     const requestColumns = db.prepare("PRAGMA table_info(requests)").all();
     if (!requestColumns.some((column) => column.name === "exclusive")) {
       db.exec("ALTER TABLE requests ADD COLUMN exclusive INTEGER NOT NULL DEFAULT 0");

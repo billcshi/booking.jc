@@ -76,3 +76,19 @@ const en = {
 export type MessageKey = keyof typeof en;
 export function normalizeLocale(value?: string): Locale { return value === "en" ? "en" : "zh-CN"; }
 export function translate(locale: Locale, key: MessageKey): string { return locale === "en" ? en[key] : key; }
+
+export function blackoutLabel(
+  { reason_type, reason }: { reason_type: string | null; reason: string },
+  locale: Locale,
+  unlocked: boolean,
+): string {
+  if (!unlocked) return translate(locale, "不可住");
+  if (reason_type === "pause") return translate(locale, "暂停接待住客");
+  if (reason_type === "away") return translate(locale, "Host 外出");
+  if (reason_type === null) {
+    if (reason === "暂停接待住客" || reason === "Not hosting guests") return translate(locale, "暂停接待住客");
+    if (reason === "Host 外出" || reason === "Host away") return translate(locale, "Host 外出");
+    if (locale === "en" && reason.startsWith("外出：")) return `Away: ${reason.slice(3)}`;
+  }
+  return reason || translate(locale, "不可住");
+}
