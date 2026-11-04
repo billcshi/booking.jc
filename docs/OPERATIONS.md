@@ -83,7 +83,8 @@ Normal application startup runs the same shared initializer as a fallback.
 
 Pass `--interactive` on a fresh database to choose the permanent-home name, location
 label, and resources. Each resource uses `name | capacity | flags`; separate resources
-with semicolons. Flags are `normal`, `sofa`, and `hidden`. The same initial values may
+with semicolons. Flags are `normal`, `sofa` (automatically allocated), and `hidden`
+(host-only capacity that requires explicit opt-in). The same initial values may
 be supplied through `INITIAL_HOME_NAME`, `INITIAL_HOME_LOCATION`, and
 `INITIAL_HOME_RESOURCES` in `.env` only when they are non-sensitive defaults. Enter
 exact locations and private room details interactively so they are written only to the

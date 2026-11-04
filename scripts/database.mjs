@@ -337,6 +337,16 @@ export function initializeDatabase({
       db.exec("UPDATE resources SET requires_sofa_consent=1 WHERE lower(name) LIKE '%sofa%'");
     }
 
+    // Sofa spaces are now part of normal automatic allocation. Keep the legacy
+    // columns for API/database compatibility, but normalize permanent-home rows.
+    db.exec(`UPDATE requests SET accepts_sofa=1 WHERE stay_id IN (
+      SELECT id FROM stays WHERE starts_on IS NULL AND ends_on IS NULL
+    )`);
+    db.exec(`UPDATE request_changes SET accepts_sofa=1 WHERE request_id IN (
+      SELECT q.id FROM requests q JOIN stays s ON s.id=q.stay_id
+      WHERE s.starts_on IS NULL AND s.ends_on IS NULL
+    )`);
+
     db.prepare("INSERT OR IGNORE INTO settings (key,value) VALUES ('group_key',?)").run(requestKey);
     db.prepare("INSERT OR IGNORE INTO settings (key,value) VALUES ('group_key_version','1')").run();
     db.prepare("INSERT OR IGNORE INTO settings (key,value) VALUES ('host_display_name','Host')").run();
@@ -344,7 +354,7 @@ export function initializeDatabase({
     db.prepare("INSERT OR IGNORE INTO settings (key,value) VALUES ('show_alcohol_notice','1')").run();
     db.prepare("INSERT OR IGNORE INTO settings (key,value) VALUES ('show_quiet_hours_notice','1')").run();
     db.prepare("INSERT OR IGNORE INTO settings (key,value) VALUES ('calendar_feed_token',?)").run(randomBytes(24).toString("base64url"));
-    db.prepare("INSERT INTO settings (key,value) VALUES ('schema_version','4') ON CONFLICT(key) DO UPDATE SET value=excluded.value").run();
+    db.prepare("INSERT INTO settings (key,value) VALUES ('schema_version','5') ON CONFLICT(key) DO UPDATE SET value=excluded.value").run();
 
     if (!db.prepare("SELECT id FROM stays WHERE starts_on IS NULL AND ends_on IS NULL LIMIT 1").get()) {
       db.transaction(() => {

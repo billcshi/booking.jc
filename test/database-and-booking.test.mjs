@@ -47,6 +47,8 @@ test("legacy requests migrate safely and initialization is idempotent", () => {
   assert.equal(db.prepare("SELECT value FROM settings WHERE key='show_smoking_notice'").get().value,"1");
   assert.equal(db.prepare("SELECT value FROM settings WHERE key='show_alcohol_notice'").get().value,"1");
   assert.equal(db.prepare("SELECT value FROM settings WHERE key='show_quiet_hours_notice'").get().value,"1");
+  assert.equal(db.prepare("SELECT accepts_sofa FROM requests WHERE id=1").get().accepts_sofa, 1);
+  assert.equal(db.prepare("SELECT value FROM settings WHERE key='schema_version'").get().value, "5");
   db.prepare("UPDATE settings SET value='0' WHERE key='show_smoking_notice'").run();
   db.prepare("UPDATE requests SET submission_key=? WHERE id=1").run("00000000-0000-4000-8000-000000000001");
   assert.throws(() => db.prepare(`INSERT INTO requests

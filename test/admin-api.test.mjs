@@ -215,6 +215,34 @@ test("date and party size validation reject malformed adjustments", async () => 
   db.close();
 });
 
+test("permanent-home approval automatically uses sofa capacity", async () => {
+  const db = testDatabase();
+  const id = insertBooking(db, {
+    partySize: 3,
+    acceptsSofa: false,
+    acceptsAirMattress: false,
+    startsOn: "2033-08-01",
+    endsOn: "2033-08-03",
+  });
+  const approved = await api(db, `/api/admin/v1/bookings/${id}/approve`, {
+    method: "POST",
+    token: AGENT_TOKEN,
+    body: {},
+    idempotencyKey: "automatic-sofa-0001",
+    resource: "action",
+    bookingId: id,
+    action: "approve",
+  });
+  assert.equal(approved.response.status, 200);
+  assert.equal(db.prepare("SELECT accepts_sofa FROM requests WHERE id=?").get(id).accepts_sofa, 1);
+  const sofaAllocation = db.prepare(`SELECT a.seats FROM allocations a
+    JOIN resources r ON r.id=a.resource_id
+    WHERE a.request_id=? AND r.requires_sofa_consent=1`).get(id);
+  assert.equal(sofaAllocation.seats, 1);
+  assert.equal(db.prepare("SELECT SUM(seats) total FROM allocations WHERE request_id=?").get(id).total, 3);
+  db.close();
+});
+
 test("exclusive and capacity conflicts roll back approval", async () => {
   const db = testDatabase();
   const resourceId = db.prepare("SELECT id FROM resources ORDER BY priority,id LIMIT 1").get().id;

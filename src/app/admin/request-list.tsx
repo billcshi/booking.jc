@@ -22,7 +22,6 @@ function requestCardVersion(
     request.ends_on,
     request.party_size,
     request.status,
-    request.accepts_sofa,
     request.accepts_air_mattress,
     request.exclusive,
     request.note,
@@ -32,7 +31,6 @@ function requestCardVersion(
     request.change_starts_on,
     request.change_ends_on,
     request.change_party_size,
-    request.change_accepts_sofa,
     request.change_accepts_air_mattress,
     request.change_exclusive,
     request.change_note,
@@ -118,7 +116,7 @@ function RequestCard({
           </p>
           {r.is_home ? (
             <p>
-              Sofa：{r.change_accepts_sofa ? t("可以") : t("不可以")} · {t("隐藏备用位")}：{r.change_accepts_air_mattress ? t("接受") : t("不接受")}
+              {t("隐藏备用位")}：{r.change_accepts_air_mattress ? t("接受") : t("不接受")}
             </p>
           ) : null}
           {r.change_note !== r.note && (
@@ -142,7 +140,7 @@ function RequestCard({
       {(r.status==="pending"||r.change_id)&&<p className={r.conflict_preview==="clear"?"success":"alert"} aria-live="polite">{r.conflict_preview==="clear"?t("冲突预览：当前可安排"):r.conflict_preview==="blackout"?t("冲突预览：包含不可住日期"):r.conflict_preview==="exclusive"?t("冲突预览：与独占住宿冲突"):t("冲突预览：当前容量不足")}</p>}
       <div className="request-detail">
         {r.is_home? <>
-        <span>Sofa：{r.accepts_sofa ? t("可以") : t("不可以")}</span><span>{t("隐藏备用位")}：{r.accepts_air_mattress ? t("接受") : t("不接受")}</span>
+        <span>{t("隐藏备用位")}：{r.accepts_air_mattress ? t("接受") : t("不接受")}</span>
         </>:null}
         {r.allocation && <strong>{t("安排")}：{r.allocation}</strong>}{r.note && <span>{t("住客留言")}：{r.note}</span>}
       </div>
@@ -215,14 +213,6 @@ function RequestCard({
             {r.is_home?<>
             <label className="check">
               <input
-                name="accepts_sofa"
-                type="checkbox"
-                defaultChecked={Boolean(r.accepts_sofa)}
-              />{" "}
-              {t("可以睡 sofa")}
-            </label>
-            <label className="check">
-              <input
                 name="accepts_air_mattress"
                 type="checkbox"
                 defaultChecked={Boolean(r.accepts_air_mattress)}
@@ -270,7 +260,7 @@ function RequestCard({
                       <span>
                         <b>{resource.name}</b>
                         <small>
-                          {t("容量")} {resource.capacity}{resource.requires_sofa_consent ? ` · ${t("需接受 sofa")}` : ""}{resource.admin_only ? ` · ${t("隐藏备用位")}` : ""}
+                          {t("容量")} {resource.capacity}{resource.requires_sofa_consent ? ` · ${t("沙发 · 自动分配")}` : ""}{resource.admin_only ? ` · ${t("隐藏备用位")}` : ""}
                         </small>
                       </span>
                       <input

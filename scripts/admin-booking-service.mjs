@@ -113,7 +113,6 @@ function allocationPlan(db, booking) {
   let remaining = booking.party_size;
   const plan = [];
   for (const resource of resources) {
-    if (resource.requires_sofa_consent && !booking.accepts_sofa) continue;
     if (resource.admin_only && !booking.accepts_air_mattress) continue;
     const existing = db.prepare(`SELECT q.starts_on,q.ends_on,a.seats
       FROM allocations a JOIN requests q ON q.id=a.request_id
@@ -267,8 +266,8 @@ function validateAdjustments(row, adjustments) {
       stayEndsOn: row.stay_ends_on,
     });
   }
+  next.acceptsSofa = Boolean(row.is_home);
   if (!row.is_home) {
-    next.acceptsSofa = false;
     next.acceptsAirMattress = false;
   }
   next.guestName = next.guestName.trim();
@@ -325,8 +324,7 @@ function validateManualPlan(db, booking, allocations) {
     const resource = db.prepare(`SELECT id,stay_id,capacity,admin_only,requires_sofa_consent
       FROM resources WHERE id=?`).get(allocation.resourceId);
     if (!resource || resource.stay_id !== booking.stay_id ||
-        (resource.admin_only && !booking.accepts_air_mattress) ||
-        (resource.requires_sofa_consent && !booking.accepts_sofa)) {
+        (resource.admin_only && !booking.accepts_air_mattress)) {
       fail("ALLOCATION_INVALID", "A manual allocation is not eligible for this booking.", 422, {
         resourceId: allocation.resourceId,
       });
@@ -461,8 +459,12 @@ export function approveAdminBooking(db, id, options = {}) {
       const beforeRow = requireBookingRow(db, id);
       requireState(beforeRow, ["pending"], "approved");
       const before = auditSnapshot(db, beforeRow);
+      if (beforeRow.is_home) {
+        db.prepare("UPDATE requests SET accepts_sofa=1 WHERE id=?").run(id);
+      }
+      const eligibleRow = beforeRow.is_home ? requireBookingRow(db, id) : beforeRow;
       db.prepare("DELETE FROM allocations WHERE request_id=?").run(id);
-      const evaluated = allocationPlan(db, beforeRow);
+      const evaluated = allocationPlan(db, eligibleRow);
       if (evaluated.code !== "CLEAR") throwApprovalConflict(evaluated);
       insertPlan(db, id, evaluated.plan);
       db.prepare("UPDATE requests SET status='approved',rejection_reason='' WHERE id=?").run(id);

@@ -42,7 +42,7 @@ private network details, or exact home location.
 - Revocable private calendar feed, sanitized CSV/JSON exports, and an Admin-only health endpoint
 - Capacity-aware sleeping-space allocation across an entire date range
 - Admin controls to preserve, manually adjust, or automatically recalculate allocations
-- Optional sofa and hidden overflow capacity for the permanent home stay
+- Automatic sofa capacity and optional hidden overflow capacity for the permanent home stay
 - Exclusive stays that prevent overlapping bookings at the same place
 - Temporary trip stays with editable dates, locations, rooms, and beds
 - Host blackout periods for at-home hosting pauses, private plans, and optional automatic home blackouts during trips
@@ -102,7 +102,7 @@ npm run dev
 
 The optional interactive initializer asks for the permanent home name, location label,
 and sleeping resources. Resource entries use `name | capacity | flags`, separated by
-semicolons. Supported flags are `normal`, `sofa` (requires guest consent), and `hidden`
+semicolons. Supported flags are `normal`, `sofa` (included in automatic allocation), and `hidden`
 (excluded from public capacity and used only with guest opt-in plus host approval).
 Private answers are written only to the ignored SQLite database.
 
@@ -220,8 +220,8 @@ not. A request from July 10 to July 12 therefore occupies the nights of July 10 
 July 11.
 
 Approved bookings are assigned to sleeping resources in priority order across their
-full date range. Sofa or hidden overflow capacity is considered only when explicitly
-allowed. An exclusive booking locks the whole stay even when the party uses less than
+full date range. Sofa capacity is included automatically; hidden overflow capacity is
+considered only when explicitly allowed. An exclusive booking locks the whole stay even when the party uses less than
 its physical capacity.
 
 Public requests are limited to 90 nights. The host console accepts historical records

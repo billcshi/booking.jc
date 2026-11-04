@@ -20,7 +20,6 @@ type StayView = {
   starts_on: string | null;
   ends_on: string | null;
   total_capacity: number;
-  sofa_capacity: number;
   nights: Record<string, Night>;
 };
 const DAY = 86_400_000;
@@ -189,13 +188,6 @@ export default function BookingCalendar({
           </button>
         ))}
       </div>
-      <p className="stay-summary">
-        <b>{stay.total_capacity} {t("个睡位")}</b> ·{" "}
-        {isTrip
-          ? `${pretty(stay.starts_on!, locale)} → ${pretty(stay.ends_on!, locale)} · ${t("仅行程日期可预约")}`
-          : t("固定住所 · 睡位由管理员维护")}{" "}
-        · {t("退房日不占床位")}
-      </p>
       {!isTrip && visibleHouseRuleCount > 0 && (
         <section className="house-rules" aria-labelledby="house-rules-title">
           <header>
@@ -547,9 +539,6 @@ export default function BookingCalendar({
                 required
               />
             </label>
-            {!isTrip&&stay.sofa_capacity>0&&<label className="check">
-              <input name="accepts_sofa" type="checkbox" /> {t("可以睡 sofa")}
-            </label>}
             <label className="check exclusive-request">
               <input name="exclusive" type="checkbox" checked={exclusive} disabled={exclusiveUnavailable} onChange={(event)=>setExclusive(event.target.checked)} />
               <span>

@@ -158,13 +158,13 @@ export default function HomeManager({
                   <small>{resource.admin_only ? t("不向访客显示，也不计入公开容量。") : t("访客可在公开日历中申请使用。")}</small>
                 </label>
                 <label>
-                  {t("使用条件")}
+                  {t("睡位类型")}
                   <select
                     name="resource_sofa_consent"
                     value={resource.requires_sofa_consent}
                     onChange={(event) => update(resource.rowKey, { requires_sofa_consent: Number(event.target.value) })}
                   >
-                    <option value={0}>{t("无需额外同意")}</option><option value={1}>{t("需住客接受 sofa")}</option>
+                    <option value={0}>{t("普通睡位")}</option><option value={1}>{t("沙发 · 自动分配")}</option>
                   </select>
                 </label>
                 <div className="resource-actions">

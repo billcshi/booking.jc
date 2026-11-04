@@ -20,7 +20,7 @@ export const db =
   });
 if (process.env.NODE_ENV !== "production") globalDb.bookingJcDb = db;
 
-export type Stay = { id: number; name: string; location: string; starts_on: string | null; ends_on: string | null; total_capacity: number; sofa_capacity:number };
+export type Stay = { id: number; name: string; location: string; starts_on: string | null; ends_on: string | null; total_capacity: number };
 export type StayResource = { id:number; stay_id:number; name:string; capacity:number; priority:number; admin_only:number; requires_sofa_consent:number };
 export type RequestAllocation = { request_id:number; resource_id:number; seats:number };
 export type InviteKey = { id:number; guest_name:string; code:string; version:number; active:number; use_count:number; last_used_at:string|null; created_at:string };
@@ -45,8 +45,7 @@ export function listRequestsForInvite(inviteKeyId:number):GuestRequest[]{
 }
 
 export function listStays(): Stay[] {
-  return db.prepare(`SELECT s.*, COALESCE(SUM(CASE WHEN r.admin_only=0 THEN r.capacity ELSE 0 END),0) total_capacity,
-    COALESCE(SUM(CASE WHEN r.requires_sofa_consent=1 THEN r.capacity ELSE 0 END),0) sofa_capacity
+  return db.prepare(`SELECT s.*, COALESCE(SUM(CASE WHEN r.admin_only=0 THEN r.capacity ELSE 0 END),0) total_capacity
     FROM stays s LEFT JOIN resources r ON r.stay_id=s.id
     WHERE s.is_public=1 GROUP BY s.id ORDER BY COALESCE(s.starts_on,'0000')`).all() as Stay[];
 }
@@ -82,13 +81,13 @@ export function listRequests(): BookingRequest[] {
 function previewConflict(r:BookingRequest):string|null{
   if(r.status!=="pending"&&!r.change_id)return null;
   const start=r.change_starts_on??r.starts_on,end=r.change_ends_on??r.ends_on,size=r.change_party_size??r.party_size;
-  const sofa=r.change_accepts_sofa??r.accepts_sofa,hidden=r.change_accepts_air_mattress??r.accepts_air_mattress,exclusive=r.change_exclusive??r.exclusive;
+  const hidden=r.change_accepts_air_mattress??r.accepts_air_mattress,exclusive=r.change_exclusive??r.exclusive;
   if(db.prepare("SELECT 1 FROM blackouts WHERE stay_id=? AND starts_on < ? AND ends_on > ? LIMIT 1").get(r.stay_id,end,start))return "blackout";
   const overlaps=db.prepare("SELECT exclusive FROM requests WHERE deleted_at IS NULL AND stay_id=? AND id<>? AND status='approved' AND starts_on < ? AND ends_on > ?").all(r.stay_id,r.id,end,start) as Array<{exclusive:number}>;
   if((exclusive&&overlaps.length)||overlaps.some(x=>x.exclusive))return "exclusive";
   const resources=db.prepare("SELECT id,capacity,admin_only,requires_sofa_consent FROM resources WHERE stay_id=? ORDER BY priority,id").all(r.stay_id) as Array<{id:number;capacity:number;admin_only:number;requires_sofa_consent:number}>;
   let remaining=size;
-  for(const resource of resources){if(resource.admin_only&&!hidden||resource.requires_sofa_consent&&!sofa)continue;const used=db.prepare(`SELECT q.starts_on,q.ends_on,a.seats FROM allocations a JOIN requests q ON q.id=a.request_id WHERE q.deleted_at IS NULL AND q.status='approved' AND q.id<>? AND a.resource_id=? AND q.starts_on < ? AND q.ends_on > ?`).all(r.id,resource.id,end,start) as Array<{starts_on:string;ends_on:string;seats:number}>;let peak=0;for(let day=start;day<end;day=new Date(Date.parse(day+"T00:00:00Z")+86400000).toISOString().slice(0,10))peak=Math.max(peak,used.filter(x=>x.starts_on<=day&&x.ends_on>day).reduce((sum,x)=>sum+x.seats,0));remaining-=Math.min(remaining,Math.max(0,resource.capacity-peak));}
+  for(const resource of resources){if(resource.admin_only&&!hidden)continue;const used=db.prepare(`SELECT q.starts_on,q.ends_on,a.seats FROM allocations a JOIN requests q ON q.id=a.request_id WHERE q.deleted_at IS NULL AND q.status='approved' AND q.id<>? AND a.resource_id=? AND q.starts_on < ? AND q.ends_on > ?`).all(r.id,resource.id,end,start) as Array<{starts_on:string;ends_on:string;seats:number}>;let peak=0;for(let day=start;day<end;day=new Date(Date.parse(day+"T00:00:00Z")+86400000).toISOString().slice(0,10))peak=Math.max(peak,used.filter(x=>x.starts_on<=day&&x.ends_on>day).reduce((sum,x)=>sum+x.seats,0));remaining-=Math.min(remaining,Math.max(0,resource.capacity-peak));}
   return remaining>0?"capacity":"clear";
 }
 

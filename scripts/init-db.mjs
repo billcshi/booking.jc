@@ -39,7 +39,7 @@ try {
         return `${resource.name} | ${resource.capacity} | ${flags.join(",")}`;
       })
       .join("; ");
-    console.log("Resource flags: normal, sofa (requires guest consent), hidden (admin-only).");
+    console.log("Resource flags: normal, sofa (automatically allocated), hidden (admin-only).");
     const resources = await ask(`Resources [${defaultResources}]: `);
     prompt.close();
     home = {

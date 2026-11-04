@@ -128,7 +128,7 @@ preview; the write transaction always reruns all checks.
 ### Approve
 
 Only a `pending` booking may be approved. Capacity, blackout, stay-bound, exclusive,
-consent, and allocation checks run in the same immediate transaction.
+hidden-space consent, and allocation checks run in the same immediate transaction.
 
 ```http
 POST /api/admin/v1/bookings/28/approve
@@ -161,7 +161,8 @@ stay IDs, allocation IDs, management tokens, or database fields.
 | `guestName` | non-empty string, at most 80 characters |
 | `startsOn`, `endsOn` | valid `YYYY-MM-DD`; maximum range 3650 nights |
 | `partySize` | integer from 1 through 8 |
-| `acceptsSofa`, `acceptsAirMattress`, `exclusive` | boolean |
+| `acceptsSofa` | deprecated compatibility field; permanent-home bookings are always eligible for sofa allocation |
+| `acceptsAirMattress`, `exclusive` | boolean |
 | `note`, `hostNote` | string, at most 1000 characters |
 
 Pending and approved bookings may be adjusted. Adjusting an approved booking deletes

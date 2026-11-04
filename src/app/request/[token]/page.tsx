@@ -76,7 +76,6 @@ export default async function RequestPage({
   const proposedStart = request.change_starts_on ?? request.starts_on;
   const proposedEnd = request.change_ends_on ?? request.ends_on;
   const proposedSize = request.change_party_size ?? request.party_size;
-  const proposedSofa = request.change_accepts_sofa ?? request.accepts_sofa;
   const proposedAirMattress = request.change_accepts_air_mattress ?? request.accepts_air_mattress;
   const proposedExclusive = request.change_exclusive ?? request.exclusive;
   const proposedNote = request.change_note ?? request.note;
@@ -107,11 +106,6 @@ export default async function RequestPage({
           <div><dt>{t("申请者")}</dt><dd>{request.guest_name}</dd></div>
           <div><dt>{t("Dates")}</dt><dd>{request.starts_on} → {request.ends_on}</dd></div>
           <div><dt>{t("Party")}</dt><dd>{request.party_size} {t("人")}</dd></div>
-          {request.is_home === 1 && (
-            <>
-              <div><dt>Sofa</dt><dd>{request.accepts_sofa ? t("可以") : t("不可以")}</dd></div>
-            </>
-          )}
           {request.exclusive === 1 && <div><dt>{t("Stay type")}</dt><dd>🔒 {t("希望独占住宿")}</dd></div>}
           {request.allocation && <div><dt>{t("Arrangement")}</dt><dd>{request.allocation}</dd></div>}
           {request.note && <div><dt>{t("住客留言")}</dt><dd>{request.note}</dd></div>}
@@ -125,7 +119,6 @@ export default async function RequestPage({
             <span className="status pending">{t("修改待审批")}</span>
             <p><b>{request.change_guest_name}</b> · {request.change_party_size} {t("人")}</p>
             <p>{t("申请改为")} <b>{request.change_starts_on} → {request.change_ends_on}</b></p>
-            {request.is_home === 1 && <p>Sofa：{proposedSofa ? t("可以") : t("不可以")}</p>}
             <p>{t("Stay type")}：{proposedExclusive ? `🔒 ${t("希望独占住宿")}` : t("共享住宿")}</p>
             {proposedNote && <p>{t("住客留言")}：{proposedNote}</p>}
             <small>{t("审批前仍保留上方的原日期和床位安排。")}</small>
@@ -155,13 +148,7 @@ export default async function RequestPage({
                 <input name="party_size" type="number" min="1" max="8" defaultValue={proposedSize} required />
               </label>
               {request.is_home === 1 && (
-                <div className="request-option-list">
-                  <input name="accepts_air_mattress" type="hidden" value={proposedAirMattress ? "1" : ""} />
-                  <label className="check">
-                    <input name="accepts_sofa" type="checkbox" defaultChecked={Boolean(proposedSofa)} />
-                    {t("可以睡 sofa")}
-                  </label>
-                </div>
+                <input name="accepts_air_mattress" type="hidden" value={proposedAirMattress ? "1" : ""} />
               )}
               <label className="check">
                 <input name="exclusive" type="checkbox" defaultChecked={Boolean(proposedExclusive)} />

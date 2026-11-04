@@ -89,7 +89,6 @@ export default async function Home({
       starts_on: stay.starts_on,
       ends_on: stay.ends_on,
       total_capacity: stay.total_capacity,
-      sofa_capacity: stay.sofa_capacity,
       nights: usage,
     };
   });
@@ -108,7 +107,6 @@ export default async function Home({
               <p className="eyebrow">A PLACE FOR FRIENDS</p>
               <h1>{t("选你要住的晚上")}</h1>
             </div>
-            <p>{t("点日期看谁会来，再选择入住和退房。")}</p>
           </div>
         </div>
       </header>

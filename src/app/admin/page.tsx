@@ -191,9 +191,6 @@ export default async function Admin({
                 </label>
                 <div>
                   <label className="check admin-check">
-                    <input name="accepts_sofa" type="checkbox" /> {t("可以安排需 sofa 同意的睡位（仅固定住所）")}
-                  </label>
-                  <label className="check admin-check">
                     <input name="accepts_air_mattress" type="checkbox" /> {t("可以安排隐藏备用位（仅固定住所）")}
                   </label>
                   <label className="check">

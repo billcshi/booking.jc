@@ -80,7 +80,8 @@ Use only `/api/admin/v1/...`.
 - `partySize` is an integer from 1 through 8.
 - Boolean fields must be JSON booleans, not strings.
 - Allowed adjustment fields are `guestName`, `startsOn`, `endsOn`, `partySize`,
-  `acceptsSofa`, `acceptsAirMattress`, `exclusive`, `note`, and `hostNote`.
+  `acceptsAirMattress`, `exclusive`, `note`, and `hostNote`. Sofa eligibility is automatic
+  for permanent-home bookings; do not send `acceptsSofa` in new integrations.
 - Never send `status`, stay IDs, allocation IDs, tokens, database fields, or fields not
   listed above.
 
