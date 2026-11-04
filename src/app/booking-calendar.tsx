@@ -447,7 +447,7 @@ export default function BookingCalendar({
           ) : night.blocked ? (
             <div className="blocked-panel">
               <strong>{t("这晚不可住")}</strong>
-              <span>{night.blocked === "__private__" ? t("不可住") : locale==="en"&&night.blocked.startsWith("外出：")?`Away: ${night.blocked.slice(3)}`:night.blocked}</span>
+              <span>{night.blocked}</span>
             </div>
           ) : (
             <>

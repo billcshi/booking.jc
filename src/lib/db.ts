@@ -102,7 +102,7 @@ export function publicSchedule() {
     }>;
 }
 
-export type Blackout={id:number;stay_id:number;stay_name:string;starts_on:string;ends_on:string;reason:string};
+export type Blackout={id:number;stay_id:number;stay_name:string;starts_on:string;ends_on:string;reason:string;reason_type:string|null};
 export function listBlackouts():Blackout[]{return db.prepare(`SELECT b.*,s.name stay_name FROM blackouts b JOIN stays s ON s.id=b.stay_id ORDER BY b.starts_on`).all() as Blackout[];}
 export function getSetting(key:string){return (db.prepare("SELECT value FROM settings WHERE key=?").get(key) as {value:string}|undefined)?.value;}
 

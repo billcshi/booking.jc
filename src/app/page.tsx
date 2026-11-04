@@ -1,3 +1,4 @@
+import { blackoutLabel } from "@/lib/i18n";
 import Link from "next/link";
 import { getSetting, listBlackouts, listStays, publicSchedule } from "@/lib/db";
 import BookingCalendar from "./booking-calendar";
@@ -32,7 +33,7 @@ export default async function Home({
 }: {
   searchParams: Promise<{ error?: string }>;
 }) {
-  const { t } = await getI18n();
+  const { t, locale } = await getI18n();
   const timeZone = process.env.APP_TIME_ZONE ?? "UTC",
     today = localToday(timeZone),
     stays = listStays().filter((stay) => !stay.ends_on || stay.ends_on > today),
@@ -78,7 +79,7 @@ export default async function Home({
     for (const block of blackouts.filter((b) => b.stay_id === stay.id)) {
       for (const day of nights(block.starts_on, block.ends_on)) {
         usage[day] ??= { approved: 0, people: 0, pending: 0, guests: [] };
-        usage[day].blocked = unlocked ? block.reason : "__private__";
+        usage[day].blocked = blackoutLabel(block, locale, unlocked);
       }
     }
     return {
