@@ -215,6 +215,22 @@ test("date and party size validation reject malformed adjustments", async () => 
   db.close();
 });
 
+test("hidden capacity requires its own explicit opt-in", async () => {
+  const db = testDatabase();
+  for (const consent of [false, true]) {
+    const id = insertBooking(db, { partySize: 4, acceptsAirMattress: consent });
+    const result = await api(db, `/api/admin/v1/bookings/${id}/approve`, {
+      method: "POST", token: AGENT_TOKEN, body: {}, resource: "action",
+      bookingId: id, action: "approve", idempotencyKey: `hidden-capacity-${id}`,
+    });
+    assert.equal(result.response.status, consent ? 200 : 409);
+    const hiddenSeats = db.prepare(`SELECT COALESCE(SUM(a.seats),0) FROM allocations a
+      JOIN resources r ON r.id=a.resource_id WHERE a.request_id=? AND r.admin_only=1`).pluck().get(id);
+    assert.equal(hiddenSeats, consent ? 1 : 0);
+  }
+  db.close();
+});
+
 test("permanent-home approval automatically uses sofa capacity", async () => {
   const db = testDatabase();
   const id = insertBooking(db, {
@@ -234,7 +250,17 @@ test("permanent-home approval automatically uses sofa capacity", async () => {
     action: "approve",
   });
   assert.equal(approved.response.status, 200);
-  assert.equal(db.prepare("SELECT accepts_sofa FROM requests WHERE id=?").get(id).accepts_sofa, 1);
+  assert.equal(db.prepare("SELECT accepts_sofa FROM requests WHERE id=?").get(id).accepts_sofa, 0);
+  assert.equal(approved.json.booking.sofaAllocationEligible, true);
+  assert.equal(approved.json.booking.sleepingPreferences.acceptsSofa, true);
+  assert.equal(approved.json.booking.sleepingPreferences.legacySofaChoice, null);
+  const audit = db.prepare("SELECT before_summary,after_summary FROM audit_logs WHERE entity_id=? AND action='request.approved'").get(id);
+  for (const json of [audit.before_summary, audit.after_summary]) {
+    const snapshot = JSON.parse(json);
+    assert.equal(snapshot.sofaAllocationEligible, true);
+    assert.equal(snapshot.legacySofaChoice, null);
+    assert.equal(Object.hasOwn(snapshot, "acceptsSofa"), false);
+  }
   const sofaAllocation = db.prepare(`SELECT a.seats FROM allocations a
     JOIN resources r ON r.id=a.resource_id
     WHERE a.request_id=? AND r.requires_sofa_consent=1`).get(id);

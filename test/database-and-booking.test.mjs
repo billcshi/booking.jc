@@ -1,3 +1,4 @@
+import { getAdminBooking } from "../scripts/admin-booking-service.mjs";
 import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
 import { mkdtempSync, rmSync } from "node:fs";
@@ -47,8 +48,8 @@ test("legacy requests migrate safely and initialization is idempotent", () => {
   assert.equal(db.prepare("SELECT value FROM settings WHERE key='show_smoking_notice'").get().value,"1");
   assert.equal(db.prepare("SELECT value FROM settings WHERE key='show_alcohol_notice'").get().value,"1");
   assert.equal(db.prepare("SELECT value FROM settings WHERE key='show_quiet_hours_notice'").get().value,"1");
-  assert.equal(db.prepare("SELECT accepts_sofa FROM requests WHERE id=1").get().accepts_sofa, 1);
-  assert.equal(db.prepare("SELECT value FROM settings WHERE key='schema_version'").get().value, "5");
+  assert.equal(db.prepare("SELECT accepts_sofa FROM requests WHERE id=1").get().accepts_sofa, 0);
+  assert.equal(db.prepare("SELECT value FROM settings WHERE key='schema_version'").get().value, "6");
   db.prepare("UPDATE settings SET value='0' WHERE key='show_smoking_notice'").run();
   db.prepare("UPDATE requests SET submission_key=? WHERE id=1").run("00000000-0000-4000-8000-000000000001");
   assert.throws(() => db.prepare(`INSERT INTO requests
@@ -88,6 +89,42 @@ test("legacy requests migrate safely and initialization is idempotent", () => {
   assert.equal(JSON.stringify(compacted).includes("Duplicated private"), false);
   db.close();
 });
+
+for (const version of [4, 5]) {
+  test(`schema ${version} preserves sofa history across repeated upgrades`, () => {
+    const databasePath = temporaryDatabasePath();
+    let db = initializeDatabase({ databasePath, requestKey: "test-key" });
+    db.exec("DROP TABLE legacy_request_sofa_choices; DROP TABLE legacy_change_sofa_choices");
+    db.prepare("UPDATE settings SET value=? WHERE key='schema_version'").run(String(version));
+    const stayId = db.prepare("SELECT id FROM stays WHERE starts_on IS NULL AND ends_on IS NULL").get().id;
+    for (const choice of [0, 1]) {
+      const recorded = version === 5 ? 1 : choice;
+      const { lastInsertRowid } = db.prepare(`INSERT INTO requests
+        (stay_id,guest_name,contact,starts_on,ends_on,party_size,accepts_sofa,manage_token)
+        VALUES (?,'Fixture','','2032-01-01','2032-01-02',1,?,?)`).run(stayId, recorded, `fixture-${choice}`);
+      db.prepare(`INSERT INTO request_changes
+        (request_id,guest_name,starts_on,ends_on,party_size,accepts_sofa,status)
+        VALUES (?,'Fixture','2032-01-01','2032-01-03',1,?,'approved')`).run(lastInsertRowid, version === 5 ? 1 : 1 - choice);
+    }
+    db.close();
+    for (let pass = 0; pass < 2; pass++) {
+      db = initializeDatabase({ databasePath, requestKey: "test-key" });
+      const bookings = db.prepare("SELECT id,accepts_sofa FROM requests ORDER BY id").all();
+      assert.deepEqual(bookings.map(row => row.accepts_sofa), version === 4 ? [0, 1] : [1, 1]);
+      for (const [index, row] of bookings.entries()) {
+        const booking = getAdminBooking(db, row.id);
+        assert.equal(booking.sofaAllocationEligible, true);
+        assert.equal(booking.sleepingPreferences.acceptsSofa, true);
+        assert.equal(booking.sleepingPreferences.legacySofaChoice, version === 4 ? Boolean(index) : null);
+      }
+      assert.deepEqual(db.prepare("SELECT accepts_sofa FROM request_changes ORDER BY id").pluck().all(),
+        version === 4 ? [1, 0] : [1, 1]);
+      assert.deepEqual(db.prepare("SELECT accepted FROM legacy_change_sofa_choices ORDER BY change_id").pluck().all(),
+        version === 4 ? [1, 0] : []);
+      db.close();
+    }
+  });
+}
 
 function approvedRequestWithChange() {
   const db = initializeDatabase({ databasePath: temporaryDatabasePath(), requestKey: "test-key" });

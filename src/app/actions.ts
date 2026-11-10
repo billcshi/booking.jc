@@ -49,8 +49,8 @@ export async function submitRequest(form: FormData) {
     if(db.prepare("SELECT id FROM blackouts WHERE stay_id=? AND starts_on < ? AND ends_on > ? LIMIT 1").get(stayId,end,start))throw new Error("blocked");
     if(approvedExclusiveConflict(db,{stayId,startsOn:start,endsOn:end,exclusive}))throw new Error("conflict");
     const isHome=!stay.starts_on&&!stay.ends_on;
-    const result=db.prepare(`INSERT INTO requests (stay_id,guest_name,contact,starts_on,ends_on,party_size,accepts_sofa,accepts_air_mattress,note,manage_token,exclusive,invite_key_id,submission_key)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT DO NOTHING`).run(stayId,guest,"",start,end,size,isHome?1:0,isHome&&form.get("accepts_air_mattress")?1:0,text(form,"note",1000),token,exclusive?1:0,access.inviteKeyId,submissionKey);
+    const result=db.prepare(`INSERT INTO requests (stay_id,guest_name,contact,starts_on,ends_on,party_size,accepts_air_mattress,note,manage_token,exclusive,invite_key_id,submission_key)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT DO NOTHING`).run(stayId,guest,"",start,end,size,isHome&&form.get("accepts_air_mattress")?1:0,text(form,"note",1000),token,exclusive?1:0,access.inviteKeyId,submissionKey);
     if(!result.changes)token=(db.prepare("SELECT manage_token FROM requests WHERE submission_key=?").get(submissionKey) as {manage_token:string}).manage_token;
   });
   try{tx.immediate();}catch(error){if(error instanceof Error&&["dates","blocked","conflict"].includes(error.message))redirect(`/?error=${error.message}`);throw error;}
@@ -167,7 +167,6 @@ export async function editRequest(form: FormData) {
       startsOn: start,
       endsOn: end,
       partySize: size,
-      acceptsSofa: true,
       acceptsAirMattress: Boolean(form.get("accepts_air_mattress")),
       exclusive: Boolean(form.get("exclusive")),
       note: text(form, "note", 1000),
@@ -313,8 +312,8 @@ export async function addGuestDirectly(form: FormData) {
     if (!stay || (stay.starts_on&&start<stay.starts_on) || (stay.ends_on&&end>stay.ends_on)) throw new Error("form");
     if(db.prepare("SELECT id FROM blackouts WHERE stay_id=? AND starts_on < ? AND ends_on > ? LIMIT 1").get(stayId,end,start))throw new Error("blocked");
     const isHome=!stay.starts_on&&!stay.ends_on;
-    const inserted=db.prepare(`INSERT INTO requests (stay_id,guest_name,contact,starts_on,ends_on,party_size,accepts_sofa,accepts_air_mattress,host_note,status,manage_token,exclusive,submission_key)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT DO NOTHING`).run(stayId,guest,"",start,end,size,isHome?1:0,isHome&&form.get("accepts_air_mattress")?1:0,text(form,"note",500),"pending",token,form.get("exclusive")?1:0,submissionKey);
+    const inserted=db.prepare(`INSERT INTO requests (stay_id,guest_name,contact,starts_on,ends_on,party_size,accepts_air_mattress,host_note,status,manage_token,exclusive,submission_key)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT DO NOTHING`).run(stayId,guest,"",start,end,size,isHome&&form.get("accepts_air_mattress")?1:0,text(form,"note",500),"pending",token,form.get("exclusive")?1:0,submissionKey);
     if(!inserted.changes)return;
     const id=Number(inserted.lastInsertRowid);
     if(!suggestAllocation(id)) throw new Error("capacity");
@@ -348,31 +347,31 @@ export async function editOwnRequest(token:string,form:FormData){
   let result:"updated"|"change_requested"="updated";
   const tx=db.transaction(()=>{
     const request=db.prepare(`SELECT q.id,q.status,q.stay_id,q.guest_name,q.starts_on,q.ends_on,q.party_size,
-      q.accepts_sofa,q.accepts_air_mattress,q.exclusive,
+      q.accepts_air_mattress,q.exclusive,
       s.starts_on stay_starts_on,s.ends_on stay_ends_on
-      FROM requests q JOIN stays s ON s.id=q.stay_id WHERE q.manage_token=? AND q.deleted_at IS NULL`).get(token) as {id:number;status:string;stay_id:number;guest_name:string;starts_on:string;ends_on:string;party_size:number;accepts_sofa:number;accepts_air_mattress:number;exclusive:number;stay_starts_on:string|null;stay_ends_on:string|null}|undefined;
+      FROM requests q JOIN stays s ON s.id=q.stay_id WHERE q.manage_token=? AND q.deleted_at IS NULL`).get(token) as {id:number;status:string;stay_id:number;guest_name:string;starts_on:string;ends_on:string;party_size:number;accepts_air_mattress:number;exclusive:number;stay_starts_on:string|null;stay_ends_on:string|null}|undefined;
     if(!request||!["pending","approved","rejected"].includes(request.status))throw new Error("status");
     if((request.stay_starts_on&&start<request.stay_starts_on)||(request.stay_ends_on&&end>request.stay_ends_on))throw new Error("dates");
     if(db.prepare("SELECT 1 FROM blackouts WHERE stay_id=? AND starts_on < ? AND ends_on > ? LIMIT 1").get(request.stay_id,end,start))throw new Error("blocked");
-    const isHome=!request.stay_starts_on&&!request.stay_ends_on,acceptsSofa=isHome?1:0,acceptsAirMattress=isHome&&form.get("accepts_air_mattress")?1:0,exclusive=form.get("exclusive")?1:0;
+    const isHome=!request.stay_starts_on&&!request.stay_ends_on,acceptsAirMattress=isHome&&form.get("accepts_air_mattress")?1:0,exclusive=form.get("exclusive")?1:0;
     if(approvedExclusiveConflict(db,{stayId:request.stay_id,startsOn:start,endsOn:end,exclusive:Boolean(exclusive),excludeRequestId:request.id}))throw new Error("conflict");
     if(request.status==="pending"||request.status==="rejected"){
-      db.prepare(`UPDATE requests SET guest_name=?,starts_on=?,ends_on=?,party_size=?,accepts_sofa=?,
-        accepts_air_mattress=?,exclusive=?,note=?,status='pending' WHERE id=?`).run(guest,start,end,size,acceptsSofa,acceptsAirMattress,exclusive,rawNote,request.id);
+      db.prepare(`UPDATE requests SET guest_name=?,starts_on=?,ends_on=?,party_size=?,
+        accepts_air_mattress=?,exclusive=?,note=?,status='pending' WHERE id=?`).run(guest,start,end,size,acceptsAirMattress,exclusive,rawNote,request.id);
       return;
     }
     const pending=db.prepare("SELECT id FROM request_changes WHERE request_id=? AND status='pending'").get(request.id) as {id:number}|undefined;
-    const approvalFieldsUnchanged=guest===request.guest_name&&start===request.starts_on&&end===request.ends_on&&size===request.party_size&&acceptsSofa===request.accepts_sofa&&acceptsAirMattress===request.accepts_air_mattress&&exclusive===request.exclusive;
+    const approvalFieldsUnchanged=guest===request.guest_name&&start===request.starts_on&&end===request.ends_on&&size===request.party_size&&acceptsAirMattress===request.accepts_air_mattress&&exclusive===request.exclusive;
     if(approvalFieldsUnchanged){
       db.prepare("UPDATE requests SET note=? WHERE id=?").run(rawNote,request.id);
       if(pending)db.prepare("UPDATE request_changes SET status='rejected',reviewed_at=CURRENT_TIMESTAMP WHERE id=?").run(pending.id);
       return;
     }
     result="change_requested";
-    if(pending)db.prepare(`UPDATE request_changes SET guest_name=?,starts_on=?,ends_on=?,party_size=?,accepts_sofa=?,
-      accepts_air_mattress=?,exclusive=?,note=?,created_at=CURRENT_TIMESTAMP WHERE id=?`).run(guest,start,end,size,acceptsSofa,acceptsAirMattress,exclusive,rawNote,pending.id);
-    else db.prepare(`INSERT INTO request_changes (request_id,guest_name,starts_on,ends_on,party_size,accepts_sofa,accepts_air_mattress,exclusive,note)
-      VALUES (?,?,?,?,?,?,?,?,?)`).run(request.id,guest,start,end,size,acceptsSofa,acceptsAirMattress,exclusive,rawNote);
+    if(pending)db.prepare(`UPDATE request_changes SET guest_name=?,starts_on=?,ends_on=?,party_size=?,
+      accepts_air_mattress=?,exclusive=?,note=?,created_at=CURRENT_TIMESTAMP WHERE id=?`).run(guest,start,end,size,acceptsAirMattress,exclusive,rawNote,pending.id);
+    else db.prepare(`INSERT INTO request_changes (request_id,guest_name,starts_on,ends_on,party_size,accepts_air_mattress,exclusive,note)
+      VALUES (?,?,?,?,?,?,?,?)`).run(request.id,guest,start,end,size,acceptsAirMattress,exclusive,rawNote);
   });
   try{tx.immediate();}catch(error){if(error instanceof Error&&["blocked","dates","status","conflict"].includes(error.message))redirect(`/request/${token}?error=${error.message}`);throw error;}
   revalidatePath("/");revalidatePath("/admin");revalidatePath(`/request/${token}`);

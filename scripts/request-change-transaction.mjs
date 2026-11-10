@@ -1,7 +1,7 @@
 export function reviewRequestChangeInTransaction({ db, changeId, decision, suggestAllocation, audit = () => {} }) {
   let token = "";
   const transaction = db.transaction(() => {
-    const change = db.prepare(`SELECT c.id,c.request_id,c.guest_name,c.starts_on,c.ends_on,c.party_size,c.accepts_sofa,
+    const change = db.prepare(`SELECT c.id,c.request_id,c.guest_name,c.starts_on,c.ends_on,c.party_size,
       c.accepts_air_mattress,c.exclusive,c.note,q.status request_status,q.stay_id,q.manage_token,
       s.starts_on stay_starts_on,s.ends_on stay_ends_on
       FROM request_changes c JOIN requests q ON q.id=c.request_id JOIN stays s ON s.id=q.stay_id
@@ -27,9 +27,9 @@ export function reviewRequestChangeInTransaction({ db, changeId, decision, sugge
     if (db.prepare("SELECT 1 FROM blackouts WHERE stay_id=? AND starts_on < ? AND ends_on > ? LIMIT 1")
       .get(change.stay_id, change.ends_on, change.starts_on)) throw new Error("blocked");
     db.prepare("DELETE FROM allocations WHERE request_id=?").run(change.request_id);
-    db.prepare(`UPDATE requests SET guest_name=?,starts_on=?,ends_on=?,party_size=?,accepts_sofa=?,
+    db.prepare(`UPDATE requests SET guest_name=?,starts_on=?,ends_on=?,party_size=?,
       accepts_air_mattress=?,exclusive=?,note=? WHERE id=?`).run(
-        change.guest_name, change.starts_on, change.ends_on, change.party_size, change.accepts_sofa,
+        change.guest_name, change.starts_on, change.ends_on, change.party_size,
         change.accepts_air_mattress, change.exclusive, change.note, change.request_id,
       );
     if (!suggestAllocation(change.request_id)) throw new Error("capacity");

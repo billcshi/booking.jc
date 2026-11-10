@@ -50,11 +50,12 @@ function addDay(date, days) {
 
 function loadBookingRow(db, id) {
   return db.prepare(`SELECT q.id,q.stay_id,q.guest_name,q.starts_on,q.ends_on,q.party_size,
-    q.accepts_sofa,q.accepts_air_mattress,q.exclusive,q.note,q.host_note,q.rejection_reason,q.status,
+    history.accepted legacy_sofa_choice,q.accepts_air_mattress,q.exclusive,q.note,q.host_note,q.rejection_reason,q.status,
     q.created_at,q.updated_at,s.name stay_name,
     CASE WHEN s.starts_on IS NULL AND s.ends_on IS NULL THEN 1 ELSE 0 END is_home,
     s.starts_on stay_starts_on,s.ends_on stay_ends_on
     FROM requests q JOIN stays s ON s.id=q.stay_id
+    LEFT JOIN legacy_request_sofa_choices history ON history.request_id=q.id
     WHERE q.id=? AND q.deleted_at IS NULL`).get(id);
 }
 
@@ -175,8 +176,10 @@ function toBookingResource(db, row) {
     dateSemantics: "arrival_inclusive_departure_exclusive",
     partySize: row.party_size,
     exclusive: Boolean(row.exclusive),
+    sofaAllocationEligible: Boolean(row.is_home),
     sleepingPreferences: {
-      acceptsSofa: Boolean(row.accepts_sofa),
+      acceptsSofa: Boolean(row.is_home),
+      legacySofaChoice: row.legacy_sofa_choice === null ? null : Boolean(row.legacy_sofa_choice),
       acceptsAirMattress: Boolean(row.accepts_air_mattress),
     },
     applicant: { guestName: row.guest_name },
@@ -231,7 +234,7 @@ function validateAdjustments(row, adjustments) {
     startsOn: adjustments.startsOn ?? row.starts_on,
     endsOn: adjustments.endsOn ?? row.ends_on,
     partySize: adjustments.partySize ?? row.party_size,
-    acceptsSofa: adjustments.acceptsSofa ?? Boolean(row.accepts_sofa),
+    acceptsSofa: adjustments.acceptsSofa ?? Boolean(row.is_home),
     acceptsAirMattress: adjustments.acceptsAirMattress ?? Boolean(row.accepts_air_mattress),
     exclusive: adjustments.exclusive ?? Boolean(row.exclusive),
     note: adjustments.note ?? row.note,
@@ -266,7 +269,6 @@ function validateAdjustments(row, adjustments) {
       stayEndsOn: row.stay_ends_on,
     });
   }
-  next.acceptsSofa = Boolean(row.is_home);
   if (!row.is_home) {
     next.acceptsAirMattress = false;
   }
@@ -275,13 +277,12 @@ function validateAdjustments(row, adjustments) {
 }
 
 function updateDetails(db, id, next) {
-  db.prepare(`UPDATE requests SET guest_name=?,starts_on=?,ends_on=?,party_size=?,accepts_sofa=?,
+  db.prepare(`UPDATE requests SET guest_name=?,starts_on=?,ends_on=?,party_size=?,
     accepts_air_mattress=?,exclusive=?,note=?,host_note=? WHERE id=?`).run(
       next.guestName,
       next.startsOn,
       next.endsOn,
       next.partySize,
-      next.acceptsSofa ? 1 : 0,
       next.acceptsAirMattress ? 1 : 0,
       next.exclusive ? 1 : 0,
       next.note,
@@ -361,7 +362,8 @@ function auditSnapshot(db, row) {
     endsOn: row.ends_on,
     partySize: row.party_size,
     exclusive: Boolean(row.exclusive),
-    acceptsSofa: Boolean(row.accepts_sofa),
+    sofaAllocationEligible: Boolean(row.is_home),
+    legacySofaChoice: row.legacy_sofa_choice === null ? null : Boolean(row.legacy_sofa_choice),
     acceptsAirMattress: Boolean(row.accepts_air_mattress),
     allocations: listAllocations(db, row.id).map(({ resourceId, seats }) => ({ resourceId, seats })),
   };
@@ -459,12 +461,8 @@ export function approveAdminBooking(db, id, options = {}) {
       const beforeRow = requireBookingRow(db, id);
       requireState(beforeRow, ["pending"], "approved");
       const before = auditSnapshot(db, beforeRow);
-      if (beforeRow.is_home) {
-        db.prepare("UPDATE requests SET accepts_sofa=1 WHERE id=?").run(id);
-      }
-      const eligibleRow = beforeRow.is_home ? requireBookingRow(db, id) : beforeRow;
       db.prepare("DELETE FROM allocations WHERE request_id=?").run(id);
-      const evaluated = allocationPlan(db, eligibleRow);
+      const evaluated = allocationPlan(db, beforeRow);
       if (evaluated.code !== "CLEAR") throwApprovalConflict(evaluated);
       insertPlan(db, id, evaluated.plan);
       db.prepare("UPDATE requests SET status='approved',rejection_reason='' WHERE id=?").run(id);
