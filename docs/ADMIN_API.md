@@ -105,7 +105,9 @@ GET /api/admin/v1/bookings/28
     "dateSemantics": "arrival_inclusive_departure_exclusive",
     "partySize": 2,
     "exclusive": false,
+    "sofaAllocationEligible": true,
     "sleepingPreferences": {
+      "legacySofaChoice": null,
       "acceptsSofa": true,
       "acceptsAirMattress": false
     },
@@ -164,6 +166,15 @@ stay IDs, allocation IDs, management tokens, or database fields.
 | `acceptsSofa` | deprecated compatibility field; permanent-home bookings are always eligible for sofa allocation |
 | `acceptsAirMattress`, `exclusive` | boolean |
 | `note`, `hostNote` | string, at most 1000 characters |
+
+For reads, `sleepingPreferences.acceptsSofa` is a compatibility alias for
+`sofaAllocationEligible`. Legacy boolean inputs are accepted and ignored.
+`sleepingPreferences.legacySofaChoice` is the recorded checkbox on the request
+at upgrade from a pre-v5 home booking. It is null for new bookings and when
+the checkbox cannot be established, including databases already normalized by
+v5. Historical change forms retain their own independent snapshots. New Agent
+audit summaries distinguish eligibility and the legacy choice. Interpret older
+audit JSON in the context of the version that produced it.
 
 Pending and approved bookings may be adjusted. Adjusting an approved booking deletes
 and recreates its allocation in the same transaction; failure restores all original
